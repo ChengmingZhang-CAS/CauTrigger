@@ -1,4 +1,4 @@
-# CauTrigger <img src="docs/_static/logo.png" width="38" style="vertical-align: middle;"/>
+# CauTrigger
 
 [![Tests][badge-tests]][tests]
 [![Documentation][badge-docs]][documentation]
