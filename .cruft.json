@@ -1,0 +1,43 @@
+{
+  "template": "https://github.com/scverse/cookiecutter-scverse",
+  "commit": "adb48cf21a413cf28f8d3745b9aa411c73d9ff03",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "project_name": "CauTrigger",
+      "package_name": "cautrigger",
+      "project_description": "Deciphering biological system state transitions by hierarchical causal decomposition",
+      "author_full_name": "Chengming Zhang",
+      "author_email": "zhangchengming.utokyo@gmail.com",
+      "github_user": "ChengmingZhang-CAS",
+      "github_repo": "CauTrigger",
+      "license": "MIT License",
+      "ide_integration": true,
+      "_copy_without_render": [
+        ".github/workflows/build.yaml",
+        ".github/workflows/test.yaml",
+        "docs/_templates/autosummary/**.rst"
+      ],
+      "_exclude_on_template_update": [
+        "CHANGELOG.md",
+        "LICENSE",
+        "README.md",
+        "docs/api.md",
+        "docs/index.md",
+        "docs/notebooks/example.ipynb",
+        "docs/references.bib",
+        "docs/references.md",
+        "src/**",
+        "tests/**"
+      ],
+      "_render_devdocs": false,
+      "_jinja2_env_vars": {
+        "lstrip_blocks": true,
+        "trim_blocks": true
+      },
+      "_template": "https://github.com/scverse/cookiecutter-scverse",
+      "_commit": "adb48cf21a413cf28f8d3745b9aa411c73d9ff03"
+    }
+  },
+  "directory": null
+}

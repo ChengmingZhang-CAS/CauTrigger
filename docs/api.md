@@ -1,39 +1,38 @@
-# API
-
-## Preprocessing
+# API Reference
 
 ```{eval-rst}
-.. module:: cautrigger.pp
-.. currentmodule:: cautrigger
+.. automodule:: cautrigger.causaleffect
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :no-index:
 
-.. autosummary::
-    :toctree: generated
+.. automodule:: cautrigger.dataloaders
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :no-index:
 
-    pp.basic_preproc
-    pp.elaborate_example
-```
+.. automodule:: cautrigger.distributions
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :no-index:
 
-## Tools
+.. automodule:: cautrigger.layers
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :no-index:
 
-```{eval-rst}
-.. module:: cautrigger.tl
-.. currentmodule:: cautrigger
+.. automodule:: cautrigger.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :no-index:
 
-.. autosummary::
-    :toctree: generated
-
-    tl.basic_tool
-```
-
-## Plotting
-
-```{eval-rst}
-.. module:: cautrigger.pl
-.. currentmodule:: cautrigger
-
-.. autosummary::
-    :toctree: generated
-
-    pl.basic_plot
-    pl.BasicClass
-```
+.. automodule:: cautrigger
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :no-index:

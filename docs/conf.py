@@ -111,10 +111,12 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 # a list of builtin themes.
 #
 html_theme = "sphinx_book_theme"
+# html_theme = "furo"
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 
-html_title = project_name
+# html_title = project_name
+html_title = "CauTrigger"
 
 html_theme_options = {
     "repository_url": repository_url,

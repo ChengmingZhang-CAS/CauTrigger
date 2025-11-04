@@ -3,28 +3,37 @@ build-backend = "hatchling.build"
 requires = [ "hatchling" ]
 
 [project]
-name = "CauTrigger"
+name = "cautrigger"
 version = "0.0.1"
 description = "Deciphering biological system state transitions by hierarchical causal decomposition"
 readme = "README.md"
 license = { file = "LICENSE" }
 maintainers = [
   { name = "Chengming Zhang", email = "zhangchengming.utokyo@gmail.com" },
+  { name = "Deyu Cai", email = "caidy@shanghaitech.edu.cn" },
 ]
 authors = [
   { name = "Chengming Zhang" },
+  { name = "Deyu Cai" },
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.10,<3.13"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.10",
 ]
 dependencies = [
+  "numpy>=1.22",
+  "pandas>=1.5",
   "anndata",
-  # for debug logging (referenced from the issue template)
+  "scanpy>=1.9",
+  "scvi-tools>=1.1",
+  "scikit-learn>=1.3",
+  "matplotlib>=3.7",
+  "seaborn>=0.12",
+  "tqdm",
+  "shap",
+  "captum",
+  "pyarrow",
   "session-info2",
 ]
 optional-dependencies.dev = [
@@ -36,7 +45,6 @@ optional-dependencies.doc = [
   "ipykernel",
   "ipython",
   "myst-nb>=1.1",
-  "pandas",
   # Until pybtex >0.24.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
   "setuptools",
   "sphinx>=8.1",
@@ -53,7 +61,7 @@ optional-dependencies.test = [
   "pytest-cov",     # For VS Code’s coverage functionality
 ]
 # https://docs.pypi.org/project_metadata/#project-urls
-urls.Documentation = "https://CauTrigger.readthedocs.io/"
+urls.Documentation = "https://cautrigger.readthedocs.io/"
 urls.Homepage = "https://github.com/ChengmingZhang-CAS/CauTrigger"
 urls.Source = "https://github.com/ChengmingZhang-CAS/CauTrigger"
 
@@ -67,15 +75,15 @@ scripts.build = "sphinx-build -M html docs docs/_build -W {args}"
 scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
 scripts.clean = "git clean -fdX -- {args:docs}"
 
-# Test the lowest and highest supported Python versions with normal deps
+# Test the supported Python version with normal deps
 [[tool.hatch.envs.hatch-test.matrix]]
 deps = [ "stable" ]
-python = [ "3.11", "3.14" ]
+python = [ "3.10" ]
 
-# Test the newest supported Python version also with pre-release deps
+# Optionally test pre-release packages (same Python)
 [[tool.hatch.envs.hatch-test.matrix]]
 deps = [ "pre" ]
-python = [ "3.14" ]
+python = [ "3.10" ]
 
 [tool.hatch.envs.hatch-test]
 features = [ "dev", "test" ]
@@ -136,7 +144,6 @@ addopts = [
 
 [tool.coverage.run]
 source = [ "cautrigger" ]
-patch = [ "subprocess" ]
 omit = [
   "**/test_*.py",
 ]
