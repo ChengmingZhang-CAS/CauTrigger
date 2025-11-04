@@ -1,11 +1,8 @@
-# CauTrigger
-
-<div align="center">
-  <img src="docs/_static/logo.png" width="150">
-</div>
+# CauTrigger <img src="docs/_static/logo.png" width="38" style="vertical-align: middle;"/>
 
 [![Tests][badge-tests]][tests]
 [![Documentation][badge-docs]][documentation]
+
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/ChengmingZhang-CAS/CauTrigger/test.yaml?branch=main
 [badge-docs]: https://img.shields.io/readthedocs/CauTrigger
@@ -18,9 +15,9 @@
   <img src="docs/_static/CauTrigger_overview.png" width="640">
 </div>
 
-> <sub>
+> <small>
 Causal decoupling model constructed on a dual-flow variational autoencoder (DFVAE) framework to identify causal triggers influencing state transition. Triggers ($x^n$) are processed through a feature selection layer to separates causal triggers ($x^{c_n}$) and others ($\tilde{x}^{c_n}$ ), and then encoded them into latent space $z$ consists of causal ($z^{c_n}$) and spurious ($z^{s_n}$) components. This latent space is decoded to generate downstream conductors ($x^{c_{n-1}},...,x^{c_1}$) and to predict the final cell state ($y$). The model strives to maximize the causal information flow, $I(z^{c_n}→y)$, from $z^{c_n}$ to $y$, thus delineating the causal path from $x^{c_n}$ to $y$ via $z^{c_n}$.
-> </sub>
+> </small>
 ---
 
 ## Getting started
