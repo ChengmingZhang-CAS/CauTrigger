@@ -11,5 +11,13 @@ changelog.md
 contributing.md
 references.md
 
+```
+
+```{toctree}
+
+:caption: Tutorials
+:hidden: true
+:maxdepth: 1
+
 notebooks/02_two_layer_known
 ```

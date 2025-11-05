@@ -10,7 +10,6 @@ readme = "README.md"
 license = { file = "LICENSE" }
 maintainers = [
   { name = "Chengming Zhang", email = "zhangchengming.utokyo@gmail.com" },
-  { name = "Deyu Cai", email = "caidy@shanghaitech.edu.cn" },
 ]
 authors = [
   { name = "Chengming Zhang" },

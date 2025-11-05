@@ -1205,7 +1205,8 @@ class CauTrigger1L(nn.Module):
                 plt.savefig(os.path.join(save_dir, "info_flow_1l.pdf"))
             plt.show()
             plt.close()
-
+            
+        if plot_info_flow:
             plt.figure(figsize=(10, 5))
             ax = sns.boxplot(data=info_flow_cat, palette="pastel")
             plt.xlabel("Dimensions")
@@ -2028,6 +2029,7 @@ class CauTrigger2L(nn.Module):
             plt.show()
             plt.close()
 
+        if plot_info_flow:
             plt.figure(figsize=(10, 5))
             ax = sns.boxplot(data=info_flow_cat, palette="pastel")
             plt.xlabel("Dimensions")
@@ -2972,7 +2974,7 @@ class CauTrigger3L(nn.Module):
                 plt.savefig(os.path.join(save_dir, "info_flow_3l.pdf"))
             plt.show()
             plt.close()
-
+        if plot_info_flow:
             plt.figure(figsize=(10, 5))
             ax = sns.boxplot(data=info_flow_cat, palette="pastel")
             plt.xlabel("Dimensions")
