@@ -6,11 +6,13 @@
 
 # -- Path setup --------------------------------------------------------------
 import sys
+import os
 from datetime import datetime
 from importlib.metadata import metadata
 from pathlib import Path
 
 HERE = Path(__file__).parent
+sys.path.insert(0, os.path.abspath("../src"))
 sys.path.insert(0, str(HERE / "extensions"))
 
 
