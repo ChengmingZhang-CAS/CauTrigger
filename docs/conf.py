@@ -125,6 +125,8 @@ html_theme_options = {
     "use_repository_button": True,
     "path_to_docs": "docs/",
     "navigation_with_keys": False,
+    "collapse_navigation": False,   # Keeps the left sidebar expanded
+    "show_toc_level": 2,            # Shows both items in the sidebar
 }
 
 pygments_style = "default"
