@@ -1150,6 +1150,7 @@ class CauTrigger1L(nn.Module):
             self,
             adata: Optional[AnnData] = None,
             dims: Optional[List[int]] = None,
+            zero_floor: bool = False,
             plot_info_flow: Optional[bool] = True,
             skip_single_info: Optional[bool] = True,
             save_fig: Optional[bool] = False,
@@ -1177,6 +1178,8 @@ class CauTrigger1L(nn.Module):
                                                   device=device)
                 info_flow.loc[i, j] = info.item()
         info_flow.set_index(adata.obs_names, inplace=True)
+        if zero_floor:
+            info_flow = info_flow - info_flow.min().min()
         info_flow = info_flow.apply(lambda x: x / (np.linalg.norm(x, ord=1) + 1e-8), axis=1)
 
         # Calculate information flow for causal and spurious dimensions
@@ -1192,6 +1195,8 @@ class CauTrigger1L(nn.Module):
             info_flow_cat.loc[i, 'causal'] = -info_c.item()
             info_flow_cat.loc[i, 'spurious'] = -info_s.item()
         info_flow_cat.set_index(adata.obs_names, inplace=True)
+        if zero_floor:
+            info_flow_cat = info_flow_cat - info_flow_cat.min().min()
         info_flow_cat = info_flow_cat.apply(lambda x: x / (np.linalg.norm(x, ord=1) + 1e-8), axis=1)
 
         if plot_info_flow and not skip_single_info:
@@ -1205,7 +1210,7 @@ class CauTrigger1L(nn.Module):
                 plt.savefig(os.path.join(save_dir, "info_flow_1l.pdf"))
             plt.show()
             plt.close()
-            
+
         if plot_info_flow:
             plt.figure(figsize=(10, 5))
             ax = sns.boxplot(data=info_flow_cat, palette="pastel")
@@ -1973,6 +1978,7 @@ class CauTrigger2L(nn.Module):
             self,
             adata: Optional[AnnData] = None,
             dims: Optional[List[int]] = None,
+            zero_floor: bool = False,
             plot_info_flow: Optional[bool] = True,
             skip_single_info: Optional[bool] = True,
             save_fig: Optional[bool] = False,
@@ -2000,6 +2006,8 @@ class CauTrigger2L(nn.Module):
                                                   device=device)
                 info_flow.loc[i, j] = info.item()
         info_flow.set_index(adata.obs_names, inplace=True)
+        if zero_floor:
+            info_flow = info_flow - info_flow.min().min()
         info_flow = info_flow.apply(lambda x: x / (np.linalg.norm(x, ord=1) + 1e-8), axis=1)
 
         # Calculate information flow for causal and spurious dimensions
@@ -2015,6 +2023,8 @@ class CauTrigger2L(nn.Module):
             info_flow_cat.loc[i, 'causal'] = -info_c.item()
             info_flow_cat.loc[i, 'spurious'] = -info_s.item()
         info_flow_cat.set_index(adata.obs_names, inplace=True)
+        if zero_floor:
+            info_flow_cat = info_flow_cat - info_flow_cat.min().min()
         info_flow_cat = info_flow_cat.apply(lambda x: x / (np.linalg.norm(x, ord=1) + 1e-8), axis=1)
 
         if plot_info_flow and not skip_single_info:
@@ -2919,6 +2929,7 @@ class CauTrigger3L(nn.Module):
             self,
             adata: Optional[AnnData] = None,
             dims: Optional[List[int]] = None,
+            zero_floor: bool = False,
             plot_info_flow: Optional[bool] = True,
             skip_single_info: Optional[bool] = True,
             save_fig: Optional[bool] = False,
@@ -2946,6 +2957,8 @@ class CauTrigger3L(nn.Module):
                                                   device=device)
                 info_flow.loc[i, j] = info.item()
         info_flow.set_index(adata.obs_names, inplace=True)
+        if zero_floor:
+            info_flow = info_flow - info_flow.min().min()
         info_flow = info_flow.apply(lambda x: x / (np.linalg.norm(x, ord=1) + 1e-8), axis=1)
 
         # Calculate information flow for causal and spurious dimensions
@@ -2961,6 +2974,8 @@ class CauTrigger3L(nn.Module):
             info_flow_cat.loc[i, 'causal'] = -info_c.item()
             info_flow_cat.loc[i, 'spurious'] = -info_s.item()
         info_flow_cat.set_index(adata.obs_names, inplace=True)
+        if zero_floor:
+            info_flow_cat = info_flow_cat - info_flow_cat.min().min()
         info_flow_cat = info_flow_cat.apply(lambda x: x / (np.linalg.norm(x, ord=1) + 1e-8), axis=1)
 
         if plot_info_flow and not skip_single_info:
