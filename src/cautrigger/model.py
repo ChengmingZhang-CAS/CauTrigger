@@ -16,10 +16,12 @@ from tqdm import tqdm
 import shap
 from torch.distributions import Normal, Poisson
 from scipy.linalg import norm
+from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
 from captum.attr import IntegratedGradients
 from scipy.sparse import load_npz
+from statsmodels.stats.multitest import multipletests
 
 from cautrigger.dataloaders import data_splitter, batch_sampler
 from cautrigger.module import CauVAE, DualVAE, DualVAE1L, DualVAE2L, DualVAE3L
@@ -312,7 +314,7 @@ class CauTrigger(nn.Module):
             background_data = torch.tensor(self.adata.X[idx], dtype=torch.float32)
             background_data = background_data.to(device)
 
-            model = ShapModel1(self.module, key).to(device)
+            model = ShapModel(self.module, key).to(device)
             explainer = shap.DeepExplainer(model, background_data)
 
             for data in adata_batch:
@@ -975,7 +977,7 @@ class CauTrigger1L(nn.Module):
         #     background_data = torch.tensor(self.adata.X[idx], dtype=torch.float32)
         #     background_data = background_data.to(device)
         #
-        #     model = ShapModel1(self.module, key).to(device)
+        #     model = ShapModel(self.module, key).to(device)
         #     explainer = shap.DeepExplainer(model, background_data)
         #
         #     for data in adata_batch:
@@ -990,7 +992,7 @@ class CauTrigger1L(nn.Module):
             idx = np.random.permutation(self.adata.shape[0])[0:n_bg_samples]
             background_data = torch.tensor(self.adata.X[idx], dtype=torch.float32).to(device)
 
-            model = ShapModel1(self.module, key).to(device)
+            model = ShapModel(self.module, key).to(device)
             explainer = shap.DeepExplainer(model, background_data)
 
             if class_idx is not None:
@@ -1644,12 +1646,15 @@ class CauTrigger2L(nn.Module):
 
     def get_up_feature_weights(
             self,
+            adata: Optional[AnnData] = None,
             method: Optional[str] = "SHAP",
             n_bg_samples: Optional[int] = 100,
             grad_source: Optional[str] = "prob",
             normalize: Optional[bool] = True,
             sort_by_weight: Optional[bool] = True,
             class_idx: Optional[int] = None,
+            background_data: Optional[torch.Tensor] = None,
+            return_background: Optional[bool] = False,
     ):
         r"""
         Return the weights of features.
@@ -1657,7 +1662,9 @@ class CauTrigger2L(nn.Module):
         if self.module.training:
             self.module.eval()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        adata_batch = batch_sampler(self.adata, self.batch_size, shuffle=False)
+        adata = adata if adata is not None else self.adata
+
+        adata_batch = batch_sampler(adata, self.batch_size, shuffle=False)
 
         # def compute_shap_weights(key="prob"):
         #     # key = "prob" or "logit"
@@ -1666,7 +1673,7 @@ class CauTrigger2L(nn.Module):
         #     background_data = torch.tensor(self.adata.X[idx], dtype=torch.float32)
         #     background_data = background_data.to(device)
         #
-        #     model = ShapModel1(self.module, key).to(device)
+        #     model = ShapModel(self.module, key).to(device)
         #     explainer = shap.DeepExplainer(model, background_data)
         #
         #     for data in adata_batch:
@@ -1676,30 +1683,34 @@ class CauTrigger2L(nn.Module):
         #         shap_weights_full.append(shap_value)
         #
         #     return np.concatenate(shap_weights_full, axis=0).squeeze(-1)
-        def compute_shap_weights(key="prob", class_idx=None):
+        def compute_shap_weights(key="prob", class_idx=None, background_data=None):
             # key = "prob" or "logit"
-            idx = np.random.permutation(self.adata.shape[0])[0:n_bg_samples]
-            background_data = torch.tensor(self.adata.X[idx], dtype=torch.float32).to(device)
+            if background_data is None:
+                idx = np.random.permutation(adata.shape[0])[0:n_bg_samples]
+                background_data = torch.tensor(adata.X[idx], dtype=torch.float32).to(device)
+            else:
+                # background_data from predefined matrix
+                background_data = background_data.to(device)
 
-            model = ShapModel1(self.module, key).to(device)
+            model = ShapModel(self.module, key).to(device)
             explainer = shap.DeepExplainer(model, background_data)
 
             if class_idx is not None:
-                adata_subset = self.adata[self.adata.obs['labels'] == class_idx].copy()
+                adata_subset = adata[adata.obs['labels'] == class_idx].copy()
                 inputs_up = torch.tensor(adata_subset.X, dtype=torch.float32).to(device)
             else:
-                inputs_up = torch.tensor(self.adata.X, dtype=torch.float32, device=device)
+                inputs_up = torch.tensor(adata.X, dtype=torch.float32, device=device)
             # shap_value = explainer.shap_values(inputs_up)
             shap_value = explainer.shap_values(inputs_up, check_additivity=False)
             if shap_value.ndim == 3 and shap_value.shape[2] > 1:
                 shap_value = shap_value[..., class_idx] if class_idx is not None else shap_value.mean(axis=2, keepdims=True)
 
-            return shap_value
-
+            return shap_value, background_data
 
         def compute_grad_weights(grad_source="prob"):
             grad_weights_full = []
             for data in adata_batch:
+                self.module.zero_grad(set_to_none=True)
                 inputs_up = torch.tensor(data.X, dtype=torch.float32, device=device)
                 inputs_down = torch.tensor(data.obsm['X_down'], dtype=torch.float32, device=device)
                 labels = torch.tensor(data.obs['labels'], dtype=torch.float32, device=device)
@@ -1733,19 +1744,21 @@ class CauTrigger2L(nn.Module):
             else:
                 weight_vector = torch.sigmoid(self.module.feature_mapper_up.weight).cpu().detach().numpy()
                 # Expand weight vector to a matrix with the same weight vector repeated for each sample in adata_batch
-                weight_matrix = np.tile(weight_vector, (len(self.adata), 1))
+                weight_matrix = np.tile(weight_vector, (len(adata), 1))
             return weight_matrix
 
         weights_full = None
+        bg_used = None
         if method == "Model":
             weights_full = compute_model_weights()
         elif method == "SHAP":
-            weights_full = compute_shap_weights(class_idx=class_idx)
+            weights_full, bg_used = compute_shap_weights(class_idx=class_idx, background_data=background_data)
         elif method == "Grad":
             weights_full = compute_grad_weights(grad_source=grad_source)
         elif method == "Ensemble":
             model_weights = np.abs(compute_model_weights())
-            shap_weights = np.abs(compute_shap_weights())
+            shap_weights, bg_used = compute_shap_weights(class_idx=class_idx, background_data=background_data)  # ← 传进去
+            shap_weights = np.abs(shap_weights)
             grad_weights = np.abs(compute_grad_weights())
 
             # Normalize each set of weights
@@ -1763,20 +1776,278 @@ class CauTrigger2L(nn.Module):
 
         # Get the mean of the weights for each feature
         weights = np.mean(np.abs(weights_full), axis=0)
+        weights_signed = np.mean(weights_full, axis=0)
 
         # Normalize the weights if required
         if normalize:
             weights = weights / np.sum(weights)
+            weights_signed = weights_signed / np.sum(np.abs(weights_signed))
 
         # Create a new DataFrame with the weights
-        weights_df = self.adata.var.copy()
+        weights_df = adata.var.copy()
         weights_df['weight'] = weights
+        weights_df['weight_signed'] = weights_signed  # add new column
 
         # Sort the DataFrame by weight if required
         if sort_by_weight:
             weights_df = weights_df.sort_values(by='weight', ascending=False)
 
-        return weights_df, weights_full
+        if return_background and method == "SHAP":
+            return weights_df, weights_full, bg_used
+        else:
+            return weights_df, weights_full
+
+    def get_up_significance(
+            self,
+            adata: Optional[AnnData] = None,
+            method: str = "SHAP",  # "SHAP" or "Grad"
+            test_mode: str = "permutation",  # "permutation" or "sign_test"
+            perm_mode: str = "global",  # "global" or "per_feature" (only for permutation)
+            n_perm: int = 100,
+            n_bg_samples: int = 100,
+            grad_source: str = "prob",
+            normalize: bool = False,
+            class_idx: Optional[int] = None,
+            target_genes: Optional[List[str]] = None,
+            fdr_correct: bool = True,
+            use_signed: bool = True,
+            show_progress: bool = True,
+            random_state: Optional[int] = 42,
+    ):
+        """
+        Compute significance of upstream feature weights using:
+        - Grad  → Binomial sign-consistency test
+        - SHAP  → Binomial sign-consistency test or permutation test
+
+        Parameters
+        ----------
+        adata : AnnData, optional
+            Input AnnData object (default: self.adata)
+        method : str
+            "SHAP" or "Grad"
+        test_mode : str
+            For SHAP: "sign_test" or "permutation" (ignored for Grad)
+        perm_mode : str
+            "global" or "per_feature" shuffle strategy (for permutation test)
+        n_perm : int
+            Number of permutations (for permutation test)
+        n_bg_samples : int
+            Number of background samples for SHAP
+        grad_source : str
+            Source for gradient-based attribution ("prob", "logit", or "loss")
+        normalize : bool
+            Whether to normalize weights across features
+        class_idx : int, optional
+            Target class index for class-specific analysis
+        target_genes : list of str, optional
+            Genes/features to test; if None, use all
+        fdr_correct : bool
+            Apply Benjamini–Hochberg correction
+        use_signed : bool
+            Whether to use signed weights for p-value calculation
+        show_progress : bool
+            Display progress bar
+        random_state : int, optional
+            Random seed
+
+        Returns
+        -------
+        df_result : pd.DataFrame
+            DataFrame with ['weight', 'weight_signed', 'pvalue', ('qvalue')]
+        perm_matrix : np.ndarray or None
+            Permutation matrix for SHAP (None for Grad or sign_test)
+        """
+        if random_state is not None:
+            np.random.seed(random_state)
+
+        adata = adata if adata is not None else self.adata
+
+        # =======================================================
+        # Grad → Binomial Sign-Consistency Test
+        # =======================================================
+        if method == "Grad":
+            df_obs, weights_full = self.get_up_feature_weights(
+                adata=adata,
+                method=method,
+                n_bg_samples=n_bg_samples,
+                grad_source=grad_source,
+                normalize=normalize,
+                sort_by_weight=False,
+                class_idx=class_idx,
+            )
+
+            n = weights_full.shape[0]
+            k = (weights_full > 0).sum(axis=0)
+
+            pvals = np.array([
+                stats.binomtest(int(kk), n, p=0.5, alternative="two-sided").pvalue
+                for kk in k
+            ])
+
+            mean_grad = np.mean(weights_full, axis=0).astype(float)
+
+            df_result = pd.DataFrame({
+                "weight": np.abs(mean_grad),
+                "weight_signed": mean_grad,
+                "pvalue": pvals,
+            }, index=df_obs.index)
+
+            if fdr_correct:
+                df_result["qvalue"] = multipletests(pvals, method="fdr_bh")[1]
+
+            print(
+                "[Note] Grad-based significance computed via two-sided Binomial test on gradient sign consistency (no permutation).")
+            return df_result, None
+
+        # =======================================================
+        # SHAP → Binomial Sign-Consistency Test
+        # =======================================================
+        elif method == "SHAP" and test_mode == "sign_test":
+            df_obs, shap_matrix = self.get_up_feature_weights(
+                adata=adata,
+                method=method,
+                n_bg_samples=n_bg_samples,
+                grad_source=grad_source,
+                normalize=normalize,
+                sort_by_weight=False,
+                class_idx=class_idx,
+            )
+
+            n = shap_matrix.shape[0]
+            k = (shap_matrix > 0).sum(axis=0)
+
+            pvals = np.array([
+                stats.binomtest(int(kk), n, p=0.5, alternative="two-sided").pvalue
+                for kk in k
+            ])
+
+            # Remove trailing dimension if exists
+            mean_shap = np.mean(shap_matrix, axis=0).astype(float).squeeze()
+
+            df_result = pd.DataFrame({
+                "weight": np.abs(mean_shap),
+                "weight_signed": mean_shap,
+                "pvalue": pvals,
+            }, index=df_obs.index)
+
+            if fdr_correct:
+                df_result["qvalue"] = multipletests(pvals, method="fdr_bh")[1]
+
+            print(
+                "[Note] SHAP-based significance computed via two-sided Binomial test on contribution sign consistency (no permutation).")
+            return df_result, None
+
+        # =======================================================
+        # SHAP → Permutation-Based Test
+        # =======================================================
+        elif method == "SHAP" and test_mode == "permutation":
+            df_obs, _, bg_data = self.get_up_feature_weights(
+                adata=adata,
+                method=method,
+                n_bg_samples=n_bg_samples,
+                grad_source=grad_source,
+                normalize=normalize,
+                sort_by_weight=False,
+                class_idx=class_idx,
+                return_background=True,
+            )
+
+            var_names = df_obs.index.tolist()
+            if target_genes is None:
+                target_genes = var_names
+
+            perm_matrix = np.zeros((len(target_genes), n_perm))
+            iterator = tqdm(range(n_perm), desc="Permuting", disable=not show_progress)
+
+            # ---------- Global permutation ----------
+            if perm_mode == "global":
+                for i in iterator:
+                    adata_perm = adata.copy()
+                    X = adata_perm.X.copy()
+                    for j in range(X.shape[1]):
+                        np.random.shuffle(X[:, j])
+                    adata_perm.X = X
+
+                    df_perm, _ = self.get_up_feature_weights(
+                        adata=adata_perm,
+                        method=method,
+                        n_bg_samples=n_bg_samples,
+                        grad_source=grad_source,
+                        normalize=normalize,
+                        sort_by_weight=False,
+                        class_idx=class_idx,
+                        background_data=bg_data,
+                    )
+                    col = "weight_signed" if (use_signed and "weight_signed" in df_perm.columns) else "weight"
+                    perm_matrix[:, i] = df_perm.loc[target_genes, col].values
+
+            # ---------- Per-feature permutation ----------
+            elif perm_mode == "per_feature":
+                for g_idx, gene in enumerate(tqdm(target_genes, desc="Target genes", disable=not show_progress)):
+                    if gene not in var_names:
+                        continue
+                    j = var_names.index(gene)
+                    for i in range(n_perm):
+                        adata_perm = adata.copy()
+                        X = adata_perm.X.copy()
+                        np.random.shuffle(X[:, j])
+                        adata_perm.X = X
+
+                        df_perm, _ = self.get_up_feature_weights(
+                            adata=adata_perm,
+                            method=method,
+                            n_bg_samples=n_bg_samples,
+                            grad_source=grad_source,
+                            normalize=normalize,
+                            sort_by_weight=False,
+                            class_idx=class_idx,
+                            background_data=bg_data,
+                        )
+                        col = "weight_signed" if (use_signed and "weight_signed" in df_perm.columns) else "weight"
+                        perm_matrix[g_idx, i] = df_perm.loc[gene, col]
+
+            else:
+                raise ValueError("perm_mode must be 'global' or 'per_feature'.")
+
+            # ---------- Compute empirical p-values ----------
+            pvals = np.zeros(len(target_genes))
+            for k, gene in enumerate(target_genes):
+                obs_val = (
+                    df_obs.loc[gene, "weight_signed"]
+                    if (use_signed and "weight_signed" in df_obs.columns)
+                    else abs(df_obs.loc[gene, "weight"])
+                )
+                null_dist = perm_matrix[k, :]
+
+                if use_signed and "weight_signed" in df_obs.columns:
+                    if obs_val >= 0:
+                        pvals[k] = (1 + np.sum(null_dist >= obs_val)) / (n_perm + 1)
+                    else:
+                        pvals[k] = (1 + np.sum(null_dist <= obs_val)) / (n_perm + 1)
+                else:
+                    pvals[k] = (1 + np.sum(np.abs(null_dist) >= abs(obs_val))) / (n_perm + 1)
+
+            df_result = pd.DataFrame({
+                "weight": df_obs.loc[target_genes, "weight"].values,
+                "weight_signed": df_obs.loc[target_genes, "weight_signed"].values,
+                "pvalue": pvals,
+            }, index=target_genes)
+
+            if fdr_correct:
+                df_result["qvalue"] = multipletests(pvals, method="fdr_bh")[1]
+
+            print(
+                f"[Note] SHAP-based significance computed via permutation test ({perm_mode} mode, {n_perm} permutations).")
+            return df_result, perm_matrix
+
+        # =======================================================
+        # Unsupported combinations
+        # =======================================================
+        else:
+            raise ValueError(
+                f"Unsupported configuration: method='{method}', test_mode='{test_mode}'. "
+                "Supported: Grad(binomial), SHAP(sign_test/permutation)."
+            )
 
     def get_2to1_ig(
             self,
@@ -2500,7 +2771,7 @@ class CauTrigger3L(nn.Module):
             idx = np.random.permutation(self.adata.shape[0])[0:n_bg_samples]
             background_data = torch.tensor(self.adata.X[idx], dtype=torch.float32).to(device)
 
-            model = ShapModel1(self.module, key).to(device)
+            model = ShapModel(self.module, key).to(device)
             explainer = shap.DeepExplainer(model, background_data)
 
             if class_idx is not None:
@@ -3448,7 +3719,7 @@ class CauTrigger3LRaw(nn.Module):
             background_data = torch.tensor(self.adata.X[idx], dtype=torch.float32)
             background_data = background_data.to(device)
 
-            model = ShapModel1(self.module, key).to(device)
+            model = ShapModel(self.module, key).to(device)
             explainer = shap.DeepExplainer(model, background_data)
 
             for data in adata_batch:
@@ -3907,9 +4178,7 @@ class MtoZModel(nn.Module):
         return alpha_z
 
 
-
-
-class ShapModel1(nn.Module):
+class ShapModel(nn.Module):
     def __init__(self, original_model, key='prob'):
         super().__init__()
         self.original_model = original_model
@@ -3947,422 +4216,5 @@ class ShapModel1(nn.Module):
     #     return alpha_dpd['prob']
     #     # return alpha_dpd['logit']
 
-
-class CausalFlow(nn.Module):
-    """
-    Casual control of phenotype and state transitions
-    """
-
-    def __init__(
-            self,
-            adata: AnnData,
-            n_latent: int = 10,
-            n_causal: int = 2,  # Number of casual factors
-            n_controls: int = 10,  # Number of upstream causal features
-            **model_kwargs,
-    ):
-        super(CausalFlow, self).__init__()
-        self.adata = adata
-        self.train_adata = None
-        self.val_adata = None
-        self.n_latent = n_latent
-        self.n_causal = n_causal
-        self.n_controls = n_controls
-        self.batch_size = None
-        self.ce_params = None
-        self.history = {}
-
-        self.module = CauVAE(
-            n_input_up=adata.X.shape[1],
-            n_input_down=adata.obsm['X_down'].shape[1],
-            n_latent=n_latent,
-            n_causal=n_causal,
-            n_controls=n_controls,
-            **model_kwargs,
-        )
-
-    def train(
-            self,
-            max_epochs: Optional[int] = 400,
-            lr: float = 5e-4,
-            use_gpu: Optional[Union[str, int, bool]] = None,
-            train_size: float = 1.0,
-            validation_size: Optional[float] = None,
-            batch_size: int = 128,
-            early_stopping: bool = False,
-            weight_decay: float = 1e-6,
-            n_x: int = 5,
-            n_alpha: int = 25,
-            n_beta: int = 100,
-            recons_weight: float = 1.0,
-            kl_weight: float = 0.02,
-            up_weight: float = 1.0,
-            down_weight: float = 1.0,
-            feat_l1_weight: float = 0.05,
-            dpd_weight: float = 3.0,
-            fide_kl_weight: float = 0.05,
-            causal_weight: float = 1.0,
-            down_fold: float = 1.0,
-            causal_fold: float = 1.0,
-            spurious_fold: float = 1.0,
-            stage_training: bool = True,
-            weight_scheme: str = None,
-            **kwargs,
-    ):
-        """
-        Trains the model using fractal variational autoencoder.
-        """
-        # torch.autograd.set_detect_anomaly(True)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.module.to(device)
-        train_adata, val_adata = data_splitter(
-            self.adata,
-            train_size=train_size,
-            validation_size=validation_size,
-            use_gpu=use_gpu,
-        )
-        self.train_adata, self.val_adata = train_adata, val_adata
-        if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
-        ce_params = {
-            'N_alpha': n_alpha,
-            'N_beta': n_beta,
-            'K': self.n_causal,
-            'L': self.n_latent - self.n_causal,
-            'z_dim': self.n_latent,
-            'M': 2}
-        self.ce_params = ce_params
-        loss_weights = {
-            'up_rec_loss': up_weight * recons_weight,
-            'down_rec_loss': down_weight * recons_weight,
-            'up_kl_loss': kl_weight,
-            'feat_l1_loss_up': feat_l1_weight,
-            'feat_l1_loss_down': feat_l1_weight * down_fold,
-            'dpd_loss': dpd_weight,
-            'fide_kl_loss': fide_kl_weight,
-            'causal_loss': causal_weight,
-        }
-
-        self.batch_size = batch_size
-        optimizer = optim.Adam(self.module.parameters(), lr=lr, weight_decay=weight_decay)
-        epoch_losses = {'total_loss': [], 'up_rec_loss': [], 'down_rec_loss': [], 'up_kl_loss': [],
-                        'feat_l1_loss_up': [], 'feat_l1_loss_down': [], 'dpd_loss': [], 'fide_kl_loss': [],
-                        'causal_loss': []}
-        self.module.train()
-        for epoch in tqdm(range(max_epochs), desc="training", disable=False):
-            train_adata_batch = batch_sampler(train_adata, batch_size, shuffle=True)
-            batch_losses = {'total_loss': [], 'up_rec_loss': [], 'down_rec_loss': [], 'up_kl_loss': [],
-                            'feat_l1_loss_up': [], 'feat_l1_loss_down': [], 'dpd_loss': [], 'fide_kl_loss': [],
-                            'causal_loss': []}
-            if stage_training:
-                # loss_weights = self.module.update_loss_weights_sc(epoch, max_epochs, loss_weights)
-                loss_weights = self.module.update_loss_weights(epoch, max_epochs, scheme=weight_scheme)
-            for train_batch in train_adata_batch:
-                inputs_up = torch.tensor(train_batch.X, dtype=torch.float32, device=device)
-                inputs_down = torch.tensor(train_batch.obsm['X_down'], dtype=torch.float32, device=device)
-                labels = torch.tensor(train_batch.obs['labels'], dtype=torch.float32, device=device)
-                model_outputs = self.module(inputs_up)
-                loss_dict = self.module.compute_loss(model_outputs, inputs_up, inputs_down, labels)
-
-                causal_loss_list = []
-                for idx in np.random.permutation(train_batch.shape[0])[:n_x]:
-                    _causal_loss1, _ = joint_uncond(ce_params, self.module, inputs_up, idx, alpha_vi=True,
-                                                    beta_vi=True, device=device)
-                    _causal_loss2, _ = beta_info_flow(ce_params, self.module, inputs_up, idx, alpha_vi=True,
-                                                      beta_vi=False, device=device)
-                    _causal_loss = _causal_loss1 * causal_fold - _causal_loss2 * spurious_fold
-                    # _causal_loss = _causal_loss1 - _causal_loss2 * 3.0
-                    causal_loss_list += [_causal_loss]
-                up_rec_loss = loss_dict['up_rec_loss'].mean()
-                down_rec_loss = loss_dict['down_rec_loss'].mean()
-                up_kl_loss = loss_dict['up_kl_loss'].mean()
-                feat_l1_loss_up = loss_dict['feat_l1_loss_up'].mean()
-                feat_l1_loss_down = loss_dict['feat_l1_loss_down'].mean()
-                dpd_loss = loss_dict['dpd_loss'].mean()
-                fide_kl_loss = loss_dict['fide_kl_loss'].mean()
-                causal_loss = torch.stack(causal_loss_list).mean()
-
-                total_loss = loss_weights['up_rec_loss'] * up_rec_loss + \
-                             loss_weights['down_rec_loss'] * down_rec_loss + \
-                             loss_weights['up_kl_loss'] * up_kl_loss + \
-                             loss_weights['feat_l1_loss_up'] * feat_l1_loss_up + \
-                             loss_weights['feat_l1_loss_down'] * feat_l1_loss_down * down_fold + \
-                             loss_weights['dpd_loss'] * dpd_loss + \
-                             loss_weights['fide_kl_loss'] * fide_kl_loss + \
-                             loss_weights['causal_loss'] * causal_loss
-
-                optimizer.zero_grad()
-                # with torch.autograd.detect_anomaly():
-                #     total_loss.backward()
-                total_loss.backward()
-                # torch.nn.utils.clip_grad_norm_(self.module.parameters(), max_norm=1.0)
-                optimizer.step()
-
-                # update batch losses
-                batch_losses['total_loss'].append(total_loss.item())
-                batch_losses['up_rec_loss'].append(up_rec_loss.item())
-                batch_losses['down_rec_loss'].append(down_rec_loss.item())
-                batch_losses['up_kl_loss'].append(up_kl_loss.item())
-                batch_losses['feat_l1_loss_up'].append(feat_l1_loss_up.item())
-                batch_losses['feat_l1_loss_down'].append(feat_l1_loss_down.item())
-                batch_losses['dpd_loss'].append(dpd_loss.item())
-                batch_losses['fide_kl_loss'].append(fide_kl_loss.item())
-                batch_losses['causal_loss'].append(causal_loss.item())
-
-            # update epochs losses
-            epoch_losses['total_loss'].append(np.mean(batch_losses['total_loss']))
-            epoch_losses['up_rec_loss'].append(np.mean(batch_losses['up_rec_loss']))
-            epoch_losses['down_rec_loss'].append(np.mean(batch_losses['down_rec_loss']))
-            epoch_losses['up_kl_loss'].append(np.mean(batch_losses['up_kl_loss']))
-            epoch_losses['feat_l1_loss_up'].append(np.mean(batch_losses['feat_l1_loss_up']))
-            epoch_losses['feat_l1_loss_down'].append(np.mean(batch_losses['feat_l1_loss_down']))
-            epoch_losses['dpd_loss'].append(np.mean(batch_losses['dpd_loss']))
-            epoch_losses['fide_kl_loss'].append(np.mean(batch_losses['fide_kl_loss']))
-            epoch_losses['causal_loss'].append(np.mean(batch_losses['causal_loss']))
-
-            if epoch % 20 == 0 or epoch == (max_epochs - 1):
-                total_loss = np.mean(batch_losses['total_loss'])
-                logging.info(f"Epoch {epoch} training loss: {total_loss:.4f}")
-
-        self.history = epoch_losses
-
-    def plot_train_losses(self, fig_size=(8, 8)):
-        # Set figure size
-        fig = plt.figure(figsize=fig_size)
-        if self.history is None:
-            raise ValueError("You should train the model first!")
-        epoch_losses = self.history
-        # Plot a subplot of each loss
-        for i, loss_name in enumerate(epoch_losses.keys()):
-            # Gets the value of the current loss
-            loss_values = epoch_losses[loss_name]
-            # Create subplot
-            ax = fig.add_subplot(3, 3, i + 1)
-            # Draw subplot
-            ax.plot(range(len(loss_values)), loss_values)
-            # Set the subplot title
-            ax.set_title(loss_name)
-            # Set the subplot x-axis and y-axis labels
-            ax.set_xlabel('Epoch')
-            ax.set_ylabel('Loss')
-
-        # adjust the distance and edges between sub-graphs
-        plt.tight_layout()
-        # show figure
-        plt.show()
-
-    def get_up_feature_weights(
-            self,
-            method: Optional[str] = "SHAP",
-            n_bg_samples: Optional[int] = 100,
-            normalize: Optional[bool] = True,
-            sort_by_weight: Optional[bool] = True):
-        r"""
-        Return the weights of features.
-        """
-        if self.module.training:
-            self.module.eval()
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        adata_batch = batch_sampler(self.adata, self.batch_size, shuffle=False)
-
-        def compute_shap_weights():
-            shap_weights_full = []
-            idx = np.random.permutation(self.adata.shape[0])[0:n_bg_samples]
-            background_data = torch.tensor(self.adata.X[idx], dtype=torch.float32)
-            background_data = background_data.to(device)
-
-            model = ShapModel(self.module).to(device)
-            explainer = shap.DeepExplainer(model, background_data)
-
-            for data in adata_batch:
-                inputs_up = torch.tensor(data.X, dtype=torch.float32, device=device)
-
-                shap_value = explainer.shap_values(inputs_up)
-                shap_weights_full.append(shap_value)
-
-            return np.concatenate(shap_weights_full, axis=0)
-
-        def compute_grad_weights():
-            grad_weights_full = []
-            for data in adata_batch:
-                inputs_up = torch.tensor(data.X, dtype=torch.float32, device=device)
-                inputs_down = torch.tensor(data.obsm['X_down'], dtype=torch.float32, device=device)
-                labels = torch.tensor(data.obs['labels'], dtype=torch.float32, device=device)
-
-                inputs_up.requires_grad = True
-                model_outputs = self.module(inputs_up)
-                loss_dict = self.module.compute_loss(model_outputs, inputs_up, inputs_down, labels)
-                dpd_loss = loss_dict['dpd_loss']
-                dpd_loss.mean().backward()
-                grad_weights_full.append(inputs_up.grad.cpu().numpy())
-
-            return np.concatenate(grad_weights_full, axis=0)
-
-        def compute_model_weights():
-            weight_vector = torch.relu(self.module.feature_mapper_up.weight).cpu().detach().numpy()
-            # Expand the weight vector to a matrix with the same weight vector repeated for each sample in adata_batch
-            weight_matrix = np.tile(weight_vector, (len(self.adata), 1))
-            return weight_matrix
-
-        weights_full = None
-        if method == "SHAP":
-            weights_full = compute_shap_weights()
-        elif method == "Grad":
-            weights_full = compute_grad_weights()
-        elif method == "Both":
-            shap_weights = np.abs(compute_shap_weights())
-            grad_weights = np.abs(compute_grad_weights())
-            # Normalize shap_weights if sum is not zero, otherwise keep as zeros
-            shap_sum = np.sum(shap_weights, axis=1, keepdims=True)
-            shap_weights = np.where(shap_sum != 0, shap_weights / shap_sum, 0)
-            # Normalize grad_weights if sum is not zero, otherwise keep as zeros
-            grad_sum = np.sum(grad_weights, axis=1, keepdims=True)
-            grad_weights = np.where(grad_sum != 0, grad_weights / grad_sum, 0)
-            weights_full = (shap_weights + grad_weights) / 2
-
-        elif method == "Model":
-            weights_full = compute_model_weights()
-
-        # Get the mean of the weights for each feature
-        weights = np.mean(np.abs(weights_full), axis=0)
-
-        # Normalize the weights if required
-        if normalize:
-            weights = weights / np.sum(weights)
-
-        # Create a new DataFrame with the weights
-        weights_df = self.adata.var.copy()
-        weights_df['weight'] = weights
-
-        # Sort the DataFrame by weight if required
-        if sort_by_weight:
-            weights_df = weights_df.sort_values(by='weight', ascending=False)
-
-        return weights_df
-
-    @torch.no_grad()
-    def get_down_feature_weights(self, normalize: Optional[bool] = True, sort_by_weight: Optional[bool] = True):
-        r"""
-        Return the weights of features.
-        """
-
-        def process_weights(feature_mapper, feature_names, original_df):
-            weights = feature_mapper.weight.cpu().detach().numpy()
-            weights = np.maximum(weights, 0)
-            if normalize:
-                weights = weights / np.sum(weights)
-            weights_df = pd.DataFrame(weights, index=feature_names, columns=['weight'])
-            final_df = original_df.copy().join(weights_df)
-            if sort_by_weight:
-                final_df = final_df.sort_values(by='weight', ascending=False)
-            return final_df
-
-        # final_df_up = process_weights(self.module.feature_mapper_up, self.adata.var_names, self.adata.var)
-        final_df_down = process_weights(self.module.feature_mapper_down, self.adata.uns['X_down_feature'].index,
-                                        self.adata.uns['X_down_feature'])
-
-        return final_df_down
-
-    @torch.no_grad()
-    def get_model_output(
-            self,
-            adata: Optional[AnnData] = None,
-            batch_size: Optional[int] = None,
-    ):
-        """
-        Return the latent, dpd and predict label for each sample.
-        """
-        if self.module.training:
-            self.module.eval()
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        latent = []
-        logits = []
-        preds = []
-        adata = adata if adata is not None else self.adata
-        batch_size = batch_size if batch_size is not None else self.batch_size
-        adata_batch = batch_sampler(adata, batch_size, shuffle=False)
-        for data in adata_batch:
-            inputs = torch.tensor(data.X, dtype=torch.float32, device=device)
-            model_outputs = self.module(inputs)
-            latent.append(model_outputs['latent_up']['qz_m'].cpu().numpy())
-            logits.append(model_outputs['alpha_dpd']['logit'].cpu().numpy())
-            preds.append((model_outputs['alpha_dpd']['prob'].cpu().numpy() > 0.5).astype(np.int))
-
-        output = dict(latent=np.concatenate(latent, axis=0),
-                      logits=np.concatenate(logits, axis=0),
-                      preds=np.concatenate(preds, axis=0))
-
-        return output
-
-    @torch.no_grad()
-    def compute_information_flow(
-            self,
-            adata: Optional[AnnData] = None,
-            dims: Optional[List[int]] = None,
-            plot_info_flow: Optional[bool] = True,
-    ):
-        """
-        Return the latent, dpd and predict label for each sample.
-        """
-        if self.module.training:
-            self.module.eval()
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        adata = adata if adata is not None else self.adata
-        ce_params = self.ce_params
-        if dims is None:
-            dims = list(range(self.module.n_latent))
-
-        # Calculate information flow
-        info_flow = pd.DataFrame(index=range(adata.shape[0]), columns=dims)
-        for i in range(adata.shape[0]):
-            for j in dims:
-                # Get the latent space of the current sample
-                inputs = torch.tensor(adata.X, dtype=torch.float32, device=device)
-                # Calculate the information flow
-                info = joint_uncond_single_dim(ce_params, self.module, inputs, i, j, alpha_vi=False, beta_vi=True,
-                                               device=device)
-                info_flow.loc[i, j] = info.item()
-        info_flow.set_index(adata.obs_names, inplace=True)
-        info_flow = info_flow.apply(lambda x: x / np.linalg.norm(x, ord=1), axis=1)
-
-        if plot_info_flow:
-            # plot the information flow
-            plt.figure(figsize=(10, 5))
-            ax = sns.boxplot(data=info_flow, palette='pastel')
-            plt.xlabel('Dimensions')
-            plt.ylabel('Information Measurements')
-            plt.show()
-        return info_flow
-
-
-class ShapModel(nn.Module):
-    def __init__(self, original_model):
-        super().__init__()
-        self.original_model = original_model
-
-    def forward(self, x):
-        x_up = x
-        feature_mapper_up = self.original_model.feature_mapper_up
-        feature_mapper_down = self.original_model.feature_mapper_down
-        w_up = torch.relu(feature_mapper_up.weight)
-        w_down = torch.relu(feature_mapper_down.weight)
-
-        x1 = torch.mul(x, w_up)
-        latent_up = self.original_model.encoder(x1)
-        # x_up_rec = self.decoder_up(latent_up['z'])
-
-        x_down_pred = self.original_model.decoder_down(latent_up['z'])
-        x2 = torch.mul(x_down_pred, w_down)
-        org_dpd = self.original_model.dpd_model(x2)
-
-        alpha_z = torch.zeros_like(latent_up['z'])
-        alpha_z[:, :self.original_model.n_causal] = latent_up['z'][:, :self.original_model.n_causal]
-        x_down_pred_alpha = self.original_model.decoder_down(alpha_z)
-        x2_alpha = torch.mul(x_down_pred_alpha, w_down)
-        alpha_dpd = self.original_model.dpd_model(x2_alpha)
-
-        return alpha_dpd['prob']
-        # return alpha_dpd['logit']
 
 
