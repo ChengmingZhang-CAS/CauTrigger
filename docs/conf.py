@@ -122,10 +122,10 @@ html_title = "CauTrigger"
 
 html_theme_options = {
     "repository_url": repository_url,
-    "use_repository_button": True,
+    "use_repository_button": False,
     "path_to_docs": "docs/",
     "navigation_with_keys": False,
-    "collapse_navigation": False,   # Keeps the left sidebar expanded
+    "collapse_navigation": True,   # Keeps the left sidebar expanded
     "show_toc_level": 2,            # Shows both items in the sidebar
 }
 
