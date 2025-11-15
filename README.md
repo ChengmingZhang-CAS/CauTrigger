@@ -27,10 +27,7 @@ in particular, the [API documentation][].
 
 ## Installation
 
-You need to have Python 3.10 or newer installed on your system.
-If you don't have Python installed, we recommend installing [uv][].
-
-There are several alternative options to install CauTrigger:
+You need to have Python 3.10 or newer installed on your system. This process will be completed in just a few minutes under normal network conditions.
 
 <!--
 1) Install the latest release of `CauTrigger` from [PyPI][]:
@@ -40,15 +37,11 @@ pip install CauTrigger
 ```
 -->
 
-1. Install the latest development version:
-
 ```bash
 pip install git+https://github.com/ChengmingZhang-CAS/CauTrigger.git@main
 ```
 
-## Release notes
 
-See the [changelog][].
 
 ## Contact
 
@@ -59,7 +52,6 @@ If you found a bug, please use the [issue tracker][].
 
 > t.b.a
 
-[uv]: https://github.com/astral-sh/uv
 [scverse discourse]: https://discourse.scverse.org/
 [issue tracker]: https://github.com/ChengmingZhang-CAS/CauTrigger/issues
 [tests]: https://github.com/ChengmingZhang-CAS/CauTrigger/actions/workflows/test.yaml
