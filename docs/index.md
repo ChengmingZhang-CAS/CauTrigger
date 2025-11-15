@@ -1,4 +1,3 @@
-# CauTrigger
 ```{include} ../README.md
 
 ```
@@ -15,6 +14,7 @@ references.md
 
 ```{toctree}
 :caption: Tutorials
+:hidden: true
 :maxdepth: 1
 
 notebooks/index
