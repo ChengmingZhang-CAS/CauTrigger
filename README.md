@@ -1,4 +1,4 @@
-# <img src="https://raw.githubusercontent.com/ChengmingZhang-CAS/CauTrigger/main/docs/_static/logo.png" width="60" align="top"> CauTrigger
+# ![logo](https://raw.githubusercontent.com/ChengmingZhang-CAS/CauTrigger/main/docs/_static/logo.png) CauTrigger
 
 [![Tests][badge-tests]][tests]
 [![Documentation][badge-docs]][documentation]
