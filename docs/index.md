@@ -13,7 +13,6 @@ references.md
 ```
 
 ```{toctree}
-:caption: Tutorials
 :hidden: true
 :maxdepth: 1
 
