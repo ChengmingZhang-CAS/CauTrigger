@@ -17,5 +17,5 @@ references.md
 :caption: Tutorials
 :maxdepth: 1
 
-notebooks
+notebooks/index
 ```
