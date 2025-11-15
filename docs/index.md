@@ -17,8 +17,5 @@ references.md
 :caption: Tutorials
 :maxdepth: 1
 
-notebooks/02_sim_2L_tutorial
-notebooks/03_hesc_tutorial
-notebooks/04_t2d_tutorial
-notebooks/05_asd_tutorial
+notebooks
 ```
