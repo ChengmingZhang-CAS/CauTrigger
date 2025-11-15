@@ -128,6 +128,7 @@ html_theme_options = {
     "collapse_navigation": True,   # Keeps the left sidebar expanded
     "show_toc_level": 2,            # Shows both items in the sidebar
 }
+html_logo = "_static/img/logo.png"
 
 pygments_style = "default"
 
