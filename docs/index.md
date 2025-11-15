@@ -16,6 +16,7 @@ references.md
 ```{toctree}
 :caption: Tutorials
 :maxdepth: 1
+:collapse: true
 
 notebooks/02_sim_2L_tutorial
 notebooks/03_hesc_tutorial
