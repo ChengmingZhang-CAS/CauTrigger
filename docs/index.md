@@ -8,6 +8,6 @@
 
 api.md
 notebooks/index
-references.bib
+references.md
 
 ```
