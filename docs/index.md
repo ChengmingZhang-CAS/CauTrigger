@@ -3,18 +3,11 @@
 ```
 
 ```{toctree}
-:maxdepth: 1
-
-api.md
-changelog.md
-contributing.md
-references.md
-
-```
-
-```{toctree}
 :hidden: true
 :maxdepth: 1
 
+api.md
 notebooks/index
+references.md
+
 ```
