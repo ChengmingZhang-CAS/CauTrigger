@@ -241,6 +241,33 @@ def plot_vector_field(adata,pert_Gene=None,pert_celltype=None,state_obs=None,emb
 
 
 def pert_plot_vector_field(adata_TF, adata_down, model, pert_Gene,pert_celltype, run_suggest_mass_thresholds,fold,state_obs,dot_size=None, scale=0.1, min_mass=0.008,save_dir=None,embedding_name='X_tsne',n_neighbors=None,n_grid=40,palette=None,direction=None):
+    """
+    Perform in silico perturbation and visualize the resulting vector field to show cell state transitions. The method of drawing vector field map is borrowed from method CellOracle
+
+    Parameters:
+        - adata_TF [AnnData]: Annotated data object containing transcription factor expression data.
+        - adata_down [AnnData]: Annotated data object for downstream analysis with embedding coordinates.
+        - model [torch.nn.Module]: Trained CAUTrigger model with eval() and get_model_output() methods.
+        - pert_Gene [list of str]: List of features to be perturbed.
+        - pert_celltype [list of str]: List of cell types that will receive the perturbation.
+        - run_suggest_mass_thresholds [bool]: Whether to run suggested mass threshold selection. 
+                                             Must be set to True initially to determine an appropriate 'min_mass'.
+        - fold [list of float]: Multiplication factors for each perturbed feature; length must match pert_Gene.
+        - state_obs [str]: Column name in adata_TF.obs representing cell states/types.
+        - dot_size [float, optional]: Size of dots in the plot. Defaults to scanpy's default if None.
+        - scale [float]: Scaling factor for vector arrows. Larger values result in smaller arrows. Default is 0.1.
+        - min_mass [float]: Threshold for filtering low-density grid points. Use 'run_suggest_mass_thresholds=True'
+                           first to determine an appropriate value. Default is 0.008.
+        - save_dir [str, optional]: Directory path to save plots. No saving occurs if None. Default is None.
+        - embedding_name [str]: Key for embedding coordinates in adata_down.obsm. Default is 'X_tsne'.
+        - n_neighbors [int, optional]: Number of neighbors for vector field calculation. If None, defaults to 
+                                      int(adata.shape[0] / 5). Default is None.
+        - n_grid [int]: Grid density for vector field visualization. Default is 40.
+        - palette [dict, optional]: Color mapping dictionary for cell types. Default is None.
+        - direction [str, optional]: Label indicating perturbation direction for figure title. Default is None.
+    Returns:
+        - model_output_pert [dict]: Model output after applying perturbations.
+    """
     model.eval()
     with torch.no_grad():
         model_output = model.get_model_output(adata_TF)
@@ -260,8 +287,6 @@ def pert_plot_vector_field(adata_TF, adata_down, model, pert_Gene,pert_celltype,
         raise KeyError("Cannot find x_down_rec_alpha or x_down2_rec_alpha in model output.")
 
     adata_down.layers["imputed_count"] = np.float64(np.exp(model_output[down_key]))
-    # adata_down.layers["imputed_count"] = np.float64(np.exp(adata_down.X.copy()))
-
     adata_down.layers["simulated_count"] = np.float64(np.exp(model_output_pert[down_key]))
     adata_down.layers["delta_X"] = adata_down.layers["simulated_count"].copy() - adata_down.layers["imputed_count"].copy()
     ax = plot_vector_field(adata_down, embedding_name=embedding_name, state_obs=state_obs,
@@ -476,7 +501,34 @@ def plot_stream(adata,pert_Gene=None,pert_celltype=None,state_obs=None,embedding
     return adata
 
 
-def pert_plot_stream(adata_TF, adata_down, model, pert_Gene,pert_celltype, run_suggest_mass_thresholds,fold,state_obs,dot_size=None, scale=0.1, min_mass=0.008,save_dir=None,embedding_name='X_tsne',n_neighbors=None,n_grid=40,palette=None):
+def pert_plot_stream(adata_TF, adata_down, model, pert_Gene,pert_celltype, run_suggest_mass_thresholds,fold,state_obs,dot_size=None, scale=0.1, min_mass=0.008,save_dir=None,embedding_name='X_tsne',n_neighbors=None,n_grid=40,palette=None,direction=None):
+    """
+    Perform in silico perturbation and visualize the resulting streamlines (trajectories) to show cell state transitions. This is generally same to the vector field map but change vectors to streamlines. The method of drawing vector field map is borrowed from method CellOracle
+
+    Parameters:
+        - adata_TF [AnnData]: Annotated data object containing transcription factor expression data.
+        - adata_down [AnnData]: Annotated data object for downstream analysis with embedding coordinates.
+        - model [torch.nn.Module]: Trained CAUTrigger model with eval() and get_model_output() methods.
+        - pert_Gene [list of str]: List of features to be perturbed.
+        - pert_celltype [list of str]: List of cell types that will receive the perturbation.
+        - run_suggest_mass_thresholds [bool]: Whether to run suggested mass threshold selection. 
+                                             Must be set to True initially to determine an appropriate 'min_mass'.
+        - fold [list of float]: Multiplication factors for each perturbed feature; length must match pert_Gene.
+        - state_obs [str]: Column name in adata_TF.obs representing cell states/types.
+        - dot_size [float, optional]: Size of dots in the plot. Defaults to scanpy's default if None.
+        - scale [float]: Scaling factor for vector arrows. Larger values result in smaller arrows. Default is 0.1.
+        - min_mass [float]: Threshold for filtering low-density grid points. Use 'run_suggest_mass_thresholds=True'
+                           first to determine an appropriate value. Default is 0.008.
+        - save_dir [str, optional]: Directory path to save plots. No saving occurs if None. Default is None.
+        - embedding_name [str]: Key for embedding coordinates in adata_down.obsm. Default is 'X_tsne'.
+        - n_neighbors [int, optional]: Number of neighbors for vector field calculation. If None, defaults to 
+                                      int(adata.shape[0] / 5). Default is None.
+        - n_grid [int]: Grid density for vector field visualization. Default is 40.
+        - palette [dict, optional]: Color mapping dictionary for cell types. Default is None.
+        - direction [str, optional]: Label indicating perturbation direction for figure title. Default is None.
+    Returns:
+        - model_output_pert [dict]: Model output after applying  perturbations.
+    """
     model.eval()
     with torch.no_grad():
         model_output = model.get_model_output(adata_TF)
@@ -496,11 +548,9 @@ def pert_plot_stream(adata_TF, adata_down, model, pert_Gene,pert_celltype, run_s
         raise KeyError("Cannot find x_down_rec_alpha or x_down2_rec_alpha in model output.")
 
     adata_down.layers["imputed_count"] = np.float64(np.exp(model_output[down_key]))
-    # adata_down.layers["imputed_count"] = np.float64(np.exp(adata_down.X.copy()))
-
     adata_down.layers["simulated_count"] = np.float64(np.exp(model_output_pert[down_key]))
     adata_down.layers["delta_X"] = adata_down.layers["simulated_count"].copy() - adata_down.layers["imputed_count"].copy()
-    ax = plot_stream(adata_down, embedding_name=embedding_name,direction='Activation', state_obs=state_obs,
+    ax = plot_stream(adata_down, embedding_name=embedding_name,direction=direction, state_obs=state_obs,
                                    pert_Gene=pert_Gene, pert_celltype=pert_celltype, scale=scale,min_mass=min_mass, 
                             save_dir=save_dir,dot_size=dot_size,run_suggest_mass_thresholds=run_suggest_mass_thresholds,n_neighbors=n_neighbors,n_grid=n_grid,
                            palette=palette)
