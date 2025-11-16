@@ -1,5 +1,5 @@
 ```{eval-rst}
-.. automodule:: cautrigger
+.. automodule:: cautrigger.cautrigger
    :members:
    :undoc-members:
    :show-inheritance:
