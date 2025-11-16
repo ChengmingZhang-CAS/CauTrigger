@@ -4,8 +4,6 @@
 :maxdepth: 1
 api/cautrigger
 api/cautrigger.causaleffect
-api/cautrigger.dataloaders
-api/cautrigger.distributions
 api/cautrigger.layers
 api/cautrigger.utils
 ```
