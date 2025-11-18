@@ -694,40 +694,36 @@ class CauTrigger1L(nn.Module):
     r'''"""
     CauTrigger1L - First-layer causal generative model for perturbation-response modelling.
 
-    Description
-    -----------
-    CauTrigger1L wraps a single-layer DualVAE1L module and provides training and
-    interpretation utilities for modelling how features signals causally affect 
-    state. The model is designed for scenarios where all features are in one layer
-    (first-layer decomposition).
+    Description:
+        CauTrigger1L wraps a single-layer DualVAE1L module and provides training and
+        interpretation utilities for modelling how features signals causally affect 
+        state. The model is designed for scenarios where all features are in one layer
+        (first-layer decomposition).
 
-    Constructor Parameters
-    ----------------------
-    adata : AnnData
-        Annotated data matrix containing upstream features in ``adata.X`` and any
-        downstream or auxiliary arrays in ``adata.obsm`` as required by the module.
-    n_latent : int, optional
-        Dimensionality of the latent space (default: 10).
-    n_causal : int, optional
-        Number of causal latent factors (default: 2).
-    n_state : int, optional
-        Number of discrete states the model may represent (default: 2).
-    **model_kwargs : dict
-        Additional keyword arguments forwarded to the underlying DualVAE1L module.
+    Parameters:
+        adata : AnnData
+            Annotated data matrix containing upstream features in ``adata.X`` and any
+            downstream or auxiliary arrays in ``adata.obsm`` as required by the module.
+        n_latent : int, optional
+            Dimensionality of the latent space (default: 10).
+        n_causal : int, optional
+            Number of causal latent factors (default: 2).
+        n_state : int, optional
+            Number of discrete states the model may represent (default: 2).
+        **model_kwargs : dict
+            Additional keyword arguments forwarded to the underlying DualVAE1L module.
 
-    Key Attributes
-    --------------
-    module : DualVAE1L
-        The PyTorch module implementing encoder/decoder and dpd model.
-    adata, train_adata, val_adata : AnnData
-        Stored datasets for training and validation.
+    Attributes:
+        module : DualVAE1L
+            The PyTorch module implementing encoder/decoder and dpd model.
+        adata, train_adata, val_adata : AnnData
+            Stored datasets for training and validation.
 
-    Main Methods
-    ------------
-    train():
-        Train the model using the fractal VAE training loop. 
-    get_up_feature_weights():
-        Return the weights of features.
+    Methods
+        train():
+            Train the model using the fractal VAE training loop. 
+        get_up_feature_weights():
+            Return the weights of features.
     """'''
 
     def __init__(
@@ -1524,38 +1520,34 @@ class CauTrigger2L(nn.Module):
     r'''"""
     CauTrigger2L - Second-layer hierarchical causal decomposition model.
 
-    Description
-    -----------
-    CauTrigger2L wraps a DualVAE2L backbone and supports a second-stage causal
-    decomposition (e.g., upstream -> downstream -> state).
+    Description:
+        CauTrigger2L wraps a DualVAE2L backbone and supports a second-stage causal
+        decomposition (e.g., upstream -> downstream -> state).
 
-    Constructor Parameters
-    ----------------------
-    adata : AnnData
-        Annotated data matrix. Expects upstream features in ``adata.X`` and the
-        first downstream representation stored in ``adata.obsm['X_down']``.
-    n_latent : int, optional
-        Latent dimension (default: 10).
-    n_causal : int, optional
-        Number of causal factors (default: 2).
-    n_state : int, optional
-        Number of discrete states (default: 2).
-    **model_kwargs : dict
-        Forwarded to the DualVAE2L constructor.
+    Parameters:
+        adata : AnnData
+            Annotated data matrix. Expects upstream features in ``adata.X`` and the
+            first downstream representation stored in ``adata.obsm['X_down']``.
+        n_latent : int, optional
+            Latent dimension (default: 10).
+        n_causal : int, optional
+            Number of causal factors (default: 2).
+        n_state : int, optional
+            Number of discrete states (default: 2).
+        **model_kwargs : dict
+            Forwarded to the DualVAE2L constructor.
 
-    Key Attributes
-    --------------
-    module : DualVAE2L
-        The underlying PyTorch implementation for two-level VAE.
-    adata, train_adata, val_adata : AnnData
-        Stored datasets for training and validation.
+    Attributes:
+        module : DualVAE2L
+            The underlying PyTorch implementation for two-level VAE.
+        adata, train_adata, val_adata : AnnData
+            Stored datasets for training and validation.
 
-    Main Methods
-    ------------
-    train():
-        Train the model using the fractal VAE training loop. 
-    get_up_feature_weights():
-        Return the weights of features.
+    Methods:
+        train():
+            Train the model using the fractal VAE training loop. 
+        get_up_feature_weights():
+            Return the weights of features.
     """'''
 
     def __init__(
@@ -2652,41 +2644,35 @@ class CauTrigger2L(nn.Module):
 class CauTrigger3L(nn.Module):
     r'''"""
     CauTrigger3L - Third-layer hierarchical causal decomposition model.
-
-    Description
-    -----------
     CauTrigger3L wraps a DualVAE3L module and supports third-stage causal decomposition
     (eg. xc3 → xc2 → xc1 → y). It is intended for modelling complex cascades where
     effects propagate through multiple intermediate regulatory layers (for instance,
     multi-omic cascades).
 
-    Constructor Parameters
-    ----------------------
-    adata : AnnData
-        Annotated data matrix. Expects upstream features in ``adata.X`` and
-        downstream representations in ``adata.obsm['X_down1']`` and ``adata.obsm['X_down2']``.
-    n_latent : int, optional
-        Latent dimensionality (default: 10).
-    n_causal : int, optional
-        Number of causal latent factors (default: 2).
-    n_state : int, optional
-        Number of discrete states (default: 2).
-    **model_kwargs : dict
-        Extra args passed to DualVAE3L.
+    Parameters:
+        adata : AnnData
+            Annotated data matrix. Expects upstream features in ``adata.X`` and
+            downstream representations in ``adata.obsm['X_down1']`` and ``adata.obsm['X_down2']``.
+        n_latent : int, optional
+            Latent dimensionality (default: 10).
+        n_causal : int, optional
+            Number of causal latent factors (default: 2).
+        n_state : int, optional
+            Number of discrete states (default: 2).
+        **model_kwargs : dict
+            Extra args passed to DualVAE3L.
 
-    Key Attributes
-    --------------
-    module : DualVAE3L
-        The underlying three-level VAE module.
-    adata, train_adata, val_adata : AnnData
-        Stored datasets for training and validation.
+    Attributes:
+        module : DualVAE3L
+            The underlying three-level VAE module.
+        adata, train_adata, val_adata : AnnData
+            Stored datasets for training and validation.
 
-    Main Methods
-    ------------
-    train():
-        Train the model using the fractal VAE training loop. 
-    get_up_feature_weights():
-        Return the weights of features.
+    Methods:
+        train():
+            Train the model using the fractal VAE training loop. 
+        get_up_feature_weights():
+            Return the weights of features.
     """'''
 
     def __init__(
