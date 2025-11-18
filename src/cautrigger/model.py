@@ -691,9 +691,44 @@ class CauTrigger(nn.Module):
 
 
 class CauTrigger1L(nn.Module):
-    """
-    Casual control of phenotype and state transitions
-    """
+    r'''"""
+    CauTrigger1L - First-layer causal generative model for perturbation-response modelling.
+
+    Description
+    -----------
+    CauTrigger1L wraps a single-layer DualVAE1L module and provides training and
+    interpretation utilities for modelling how features signals causally affect 
+    state. The model is designed for scenarios where all features are in one layer
+    (first-layer decomposition).
+
+    Constructor Parameters
+    ----------------------
+    adata : AnnData
+        Annotated data matrix containing upstream features in ``adata.X`` and any
+        downstream or auxiliary arrays in ``adata.obsm`` as required by the module.
+    n_latent : int, optional
+        Dimensionality of the latent space (default: 10).
+    n_causal : int, optional
+        Number of causal latent factors (default: 2).
+    n_state : int, optional
+        Number of discrete states the model may represent (default: 2).
+    **model_kwargs : dict
+        Additional keyword arguments forwarded to the underlying DualVAE1L module.
+
+    Key Attributes
+    --------------
+    module : DualVAE1L
+        The PyTorch module implementing encoder/decoder and dpd model.
+    adata, train_adata, val_adata : AnnData
+        Stored datasets for training and validation.
+
+    Main Methods
+    ------------
+    train():
+        Train the model using the fractal VAE training loop. 
+    get_up_feature_weights():
+        Return the weights of features.
+    """'''
 
     def __init__(
             self,
@@ -754,6 +789,40 @@ class CauTrigger1L(nn.Module):
     ):
         """
         Trains the model using fractal variational autoencoder.
+        
+        Inputs:
+            - max_epochs: Maximum number of training epochs
+            - lr: Learning rate for optimizer
+            - use_gpu: Whether to use GPU for training
+            - train_size: Proportion of data to use for training
+            - validation_size: Proportion of data to use for validation
+            - batch_size: Number of samples per batch
+            - early_stopping: Whether to use early stopping
+            - weight_decay: Weight decay for optimizer
+            - n_x: Number of samples for causal effect computation
+            - n_alpha: Monte-carlo samples per causal factor
+            - n_beta: Monte-carlo samples per noncausal factor
+            - recons_weight: Weight for reconstruction loss
+            - kl_weight: Weight for KL divergence loss
+            - up_weight: Weight for upstream reconstruction
+            - down_weight: Weight for downstream reconstruction
+            - feat_l1_weight: Weight for feature L1 loss
+            - dpd_weight: Weight for DPD loss
+            - fide_kl_weight: Weight for fidelity KL loss
+            - causal_weight: Weight for causal loss
+            - down_fold: Downstream loss scaling factor
+            - causal_fold: Causal loss scaling factor
+            - spurious_fold: Spurious loss scaling factor
+            - stage_training: Whether to use staged training
+            - weight_scheme: Weight update scheme
+            - im_factor: Imbalance factor for loss computation
+            - drop_last: Number of samples to drop from last batch
+            - **kwargs: Additional arguments
+            
+        Outputs:
+            - Trained model with updated parameters
+            - self.history: Training loss history
+            - self.ce_params: Causal effect computation parameters
         """
         # set_seed(42)
         # torch.autograd.set_detect_anomaly(True)
@@ -890,6 +959,18 @@ class CauTrigger1L(nn.Module):
     ):
         """
         Pretrain attention network.
+        
+        Inputs:
+            - prior_probs: Prior probabilities for attention weights
+            - max_epochs: Maximum number of pretraining epochs
+            - pretrain_lr: Learning rate for pretraining
+            - batch_size: Number of samples per batch
+            - use_gpu: Whether to use GPU for pretraining
+            - train_size: Proportion of data to use for pretraining
+            - validation_size: Proportion of data to use for validation
+            
+        Outputs:
+            - Pretrained attention network
         """
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module.to(device)
@@ -962,8 +1043,20 @@ class CauTrigger1L(nn.Module):
             sort_by_weight: Optional[bool] = True,
             class_idx: Optional[int] = None,
     ):
-        r"""
+        """
         Return the weights of features.
+        
+        Inputs:
+            - method: Method for computing feature weights ("Model", "SHAP", "Grad", "Ensemble")
+            - n_bg_samples: Number of background samples for SHAP
+            - grad_source: Source for gradient computation ("prob", "logit", "loss")
+            - normalize: Whether to normalize weights
+            - sort_by_weight: Whether to sort features by weight
+            - class_idx: Class index for class-specific analysis
+            
+        Outputs:
+            - weights_df: DataFrame with feature weights
+            - weights_full: Full weight matrix
         """
         if self.module.training:
             self.module.eval()
@@ -1090,7 +1183,7 @@ class CauTrigger1L(nn.Module):
 
     @torch.no_grad()
     def get_down_feature_weights(self, normalize: Optional[bool] = True, sort_by_weight: Optional[bool] = True):
-        r"""
+        """
         Return the weights of features.
         """
 
@@ -1119,6 +1212,17 @@ class CauTrigger1L(nn.Module):
     ):
         """
         Return the latent, dpd and predict label for each sample.
+        
+        Inputs:
+            - adata: AnnData object with input data
+            - batch_size: Batch size for processing
+            
+        Outputs:
+            - output: Dictionary with latent representations, logits, probabilities and predictions
+                - latent: Latent space representations
+                - logits: Classification logits
+                - probs: Classification probabilities
+                - preds: Predicted labels
         """
         if self.module.training:
             self.module.eval()
@@ -1159,7 +1263,20 @@ class CauTrigger1L(nn.Module):
             save_dir: Optional[str] = None,
     ):
         """
-        Return the latent, dpd and predict label for each sample.
+        Compute information flow for latent dimensions.
+        
+        Inputs:
+            - adata: AnnData object with input data
+            - dims: Dimensions to compute information flow for
+            - zero_floor: Whether to subtract minimum value
+            - plot_info_flow: Whether to plot information flow
+            - skip_single_info: Whether to skip single dimension plots
+            - save_fig: Whether to save figures
+            - save_dir: Directory to save figures
+            
+        Outputs:
+            - info_flow: Information flow for each dimension
+            - info_flow_cat: Categorical information flow (causal vs spurious)
         """
         if self.module.training:
             self.module.eval()
@@ -1242,6 +1359,31 @@ class CauTrigger1L(nn.Module):
             num_sampling=200,  # number of sampling
             verbose=False,  # print training process
     ):
+        """
+        Perform state transition by optimizing causal features.
+        
+        Inputs:
+            - adata: AnnData object with input data
+            - causal_features: List of causal feature names
+            - causal_idx: Indices of causal features
+            - grad_source: Source for gradient computation ("prob", "logit")
+            - lr: Learning rate for optimization
+            - max_iter: Maximum number of iterations
+            - min_iter: Minimum number of iterations
+            - optimizer_type: Type of optimizer ("Adam", "SGD", "RMSprop")
+            - save_step: Interval for saving intermediate results
+            - stop_thresh: Early stopping threshold
+            - control_direction: Direction of control ("increase", "decrease")
+            - num_sampling: Number of samples for surface plot
+            - verbose: Whether to print training process
+            
+        Outputs:
+            - adata: Updated AnnData object with:
+                - causal_update: Causal feature update trajectories
+                - causal_sampling: Sampled points with probabilities
+                - control_details: Controllability scores and details
+                - control_direction: Control direction used
+        """
         self.module.eval() if self.module.training else None
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         adata = adata.copy() if adata is not None else self.adata.copy()
@@ -1379,10 +1521,42 @@ class CauTrigger1L(nn.Module):
 
 
 class CauTrigger2L(nn.Module):
-    """
-    Causal Hierarchical Decomposition for 3-layer Scenario.
-    xc3 → xc2 → xc1 → y, x = [xc3, xc2, xc1, xs]
-    """
+    r'''"""
+    CauTrigger2L - Second-layer hierarchical causal decomposition model.
+
+    Description
+    -----------
+    CauTrigger2L wraps a DualVAE2L backbone and supports a second-stage causal
+    decomposition (e.g., upstream -> downstream -> state).
+
+    Constructor Parameters
+    ----------------------
+    adata : AnnData
+        Annotated data matrix. Expects upstream features in ``adata.X`` and the
+        first downstream representation stored in ``adata.obsm['X_down']``.
+    n_latent : int, optional
+        Latent dimension (default: 10).
+    n_causal : int, optional
+        Number of causal factors (default: 2).
+    n_state : int, optional
+        Number of discrete states (default: 2).
+    **model_kwargs : dict
+        Forwarded to the DualVAE2L constructor.
+
+    Key Attributes
+    --------------
+    module : DualVAE2L
+        The underlying PyTorch implementation for two-level VAE.
+    adata, train_adata, val_adata : AnnData
+        Stored datasets for training and validation.
+
+    Main Methods
+    ------------
+    train():
+        Train the model using the fractal VAE training loop. 
+    get_up_feature_weights():
+        Return the weights of features.
+    """'''
 
     def __init__(
             self,
@@ -2476,10 +2650,44 @@ class CauTrigger2L(nn.Module):
 
 
 class CauTrigger3L(nn.Module):
-    """
-    Causal Hierarchical Decomposition for 2-layer Scenario.
-    xc2 → xc1 → y, x = [xc3, xc2, xc1, xs]
-    """
+    r'''"""
+    CauTrigger3L - Third-layer hierarchical causal decomposition model.
+
+    Description
+    -----------
+    CauTrigger3L wraps a DualVAE3L module and supports third-stage causal decomposition
+    (eg. xc3 → xc2 → xc1 → y). It is intended for modelling complex cascades where
+    effects propagate through multiple intermediate regulatory layers (for instance,
+    multi-omic cascades).
+
+    Constructor Parameters
+    ----------------------
+    adata : AnnData
+        Annotated data matrix. Expects upstream features in ``adata.X`` and
+        downstream representations in ``adata.obsm['X_down1']`` and ``adata.obsm['X_down2']``.
+    n_latent : int, optional
+        Latent dimensionality (default: 10).
+    n_causal : int, optional
+        Number of causal latent factors (default: 2).
+    n_state : int, optional
+        Number of discrete states (default: 2).
+    **model_kwargs : dict
+        Extra args passed to DualVAE3L.
+
+    Key Attributes
+    --------------
+    module : DualVAE3L
+        The underlying three-level VAE module.
+    adata, train_adata, val_adata : AnnData
+        Stored datasets for training and validation.
+
+    Main Methods
+    ------------
+    train():
+        Train the model using the fractal VAE training loop. 
+    get_up_feature_weights():
+        Return the weights of features.
+    """'''
 
     def __init__(
             self,
