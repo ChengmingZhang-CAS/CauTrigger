@@ -1,18 +1,26 @@
 # API
 
 ```{eval-rst}
-.. automodule:: cautrigger
-    :members:
+.. automodule:: cautrigger.model
+    :members: CauTrigger1L, CauTrigger2L, CauTrigger3L
     :undoc-members:
     :show-inheritance:
     :no-index:
 
 .. automodule:: cautrigger.causaleffect
-    :members:
+    :members: joint_uncond_v2, beta_info_flow_v2, joint_uncond_single_dim_v2
     :undoc-members:
     :show-inheritance:
     :no-index:
 
+.. automodule:: cautrigger.utils
+    :members: pert_plot_vector_field, pert_plot_stream
+    :undoc-members:
+    :show-inheritance:
+    :no-index:
+
+<!--
+这些被注释掉不渲染
 .. automodule:: cautrigger.dataloaders
     :members:
     :undoc-members:
@@ -30,11 +38,4 @@
     :undoc-members:
     :show-inheritance:
     :no-index:
-
-.. automodule:: cautrigger.utils
-    :members:
-    :exclude-members: set_seed, select_features, plot_vector_field, plot_stream
-    :undoc-members:
-    :show-inheritance:
-    :no-index:
-
+-->
