@@ -693,12 +693,10 @@ class CauTrigger(nn.Module):
 class CauTrigger1L(nn.Module):
     r'''"""
     CauTrigger1L - First-layer causal generative model for perturbation-response modelling.
-
-    Description:
-        CauTrigger1L wraps a single-layer DualVAE1L module and provides training and
-        interpretation utilities for modelling how features signals causally affect 
-        state. The model is designed for scenarios where all features are in one layer
-        (first-layer decomposition).
+    CauTrigger1L wraps a single-layer DualVAE1L module and provides training and
+    interpretation utilities for modelling how features signals causally affect 
+    state. The model is designed for scenarios where all features are in one layer
+    (first-layer decomposition).
 
     Parameters:
         adata : AnnData
@@ -1519,10 +1517,8 @@ class CauTrigger1L(nn.Module):
 class CauTrigger2L(nn.Module):
     r'''"""
     CauTrigger2L - Second-layer hierarchical causal decomposition model.
-
-    Description:
-        CauTrigger2L wraps a DualVAE2L backbone and supports a second-stage causal
-        decomposition (e.g., upstream -> downstream -> state).
+    CauTrigger2L wraps a DualVAE2L backbone and supports a second-stage causal
+    decomposition (e.g., upstream -> downstream -> state).
 
     Parameters:
         adata : AnnData
