@@ -1,6 +1,12 @@
 # API
 
 ```{eval-rst}
+.. automodule:: cautrigger
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :no-index:
+
 .. automodule:: cautrigger.causaleffect
     :members:
     :undoc-members:
@@ -32,8 +38,3 @@
     :show-inheritance:
     :no-index:
 
-.. automodule:: cautrigger
-    :members:
-    :undoc-members:
-    :show-inheritance:
-    :no-index:
