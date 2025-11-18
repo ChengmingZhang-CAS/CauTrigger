@@ -8,7 +8,7 @@
     :no-index:
 
 .. automodule:: cautrigger.causaleffect
-    :members: joint_uncond_v2, beta_info_flow_v2, joint_uncond_single_dim_v2
+    :members: joint_uncond_v2, joint_uncond_single_dim_v2
     :undoc-members:
     :show-inheritance:
     :no-index:
