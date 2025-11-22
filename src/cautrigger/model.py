@@ -691,38 +691,26 @@ class CauTrigger(nn.Module):
 
 
 class CauTrigger1L(nn.Module):
-    r'''"""
-    CauTrigger1L - First-layer causal generative model for perturbation-response modelling.
+    """First-layer causal generative model for perturbation-response modelling.
     CauTrigger1L wraps a single-layer DualVAE1L module and provides training and
     interpretation utilities for modelling how features signals causally affect 
     state. The model is designed for scenarios where all features are in one layer
     (first-layer decomposition).
 
-    Parameters:
-        adata : AnnData
-            Annotated data matrix containing upstream features in ``adata.X`` and any
-            downstream or auxiliary arrays in ``adata.obsm`` as required by the module.
-        n_latent : int, optional
-            Dimensionality of the latent space (default: 10).
-        n_causal : int, optional
-            Number of causal latent factors (default: 2).
-        n_state : int, optional
-            Number of discrete states the model may represent (default: 2).
-        **model_kwargs : dict
-            Additional keyword arguments forwarded to the underlying DualVAE1L module.
-
-    Attributes:
-        module : DualVAE1L
-            The PyTorch module implementing encoder/decoder and dpd model.
-        adata, train_adata, val_adata : AnnData
-            Stored datasets for training and validation.
-
-    Methods
-        train():
-            Train the model using the fractal VAE training loop. 
-        get_up_feature_weights():
-            Return the weights of features.
-    """'''
+    Parameters
+    ----------
+    adata
+        Annotated data matrix containing upstream features in ``adata.X`` and any
+        downstream or auxiliary arrays in ``adata.obsm`` as required by the module.
+    n_latent
+        Dimensionality of the latent space (default: 10).
+    n_causal
+        Number of causal latent factors (default: 2).
+    n_state
+        Number of discrete states the model may represent (default: 2).
+    **model_kwargs
+        Additional keyword arguments forwarded to the underlying DualVAE1L module.
+    """
 
     def __init__(
             self,
@@ -781,42 +769,64 @@ class CauTrigger1L(nn.Module):
             drop_last: int = 10,
             **kwargs,
     ):
-        """
-        Trains the model using fractal variational autoencoder.
+        """Trains the model using fractal variational autoencoder.
         
-        Inputs:
-            - max_epochs: Maximum number of training epochs
-            - lr: Learning rate for optimizer
-            - use_gpu: Whether to use GPU for training
-            - train_size: Proportion of data to use for training
-            - validation_size: Proportion of data to use for validation
-            - batch_size: Number of samples per batch
-            - early_stopping: Whether to use early stopping
-            - weight_decay: Weight decay for optimizer
-            - n_x: Number of samples for causal effect computation
-            - n_alpha: Monte-carlo samples per causal factor
-            - n_beta: Monte-carlo samples per noncausal factor
-            - recons_weight: Weight for reconstruction loss
-            - kl_weight: Weight for KL divergence loss
-            - up_weight: Weight for upstream reconstruction
-            - down_weight: Weight for downstream reconstruction
-            - feat_l1_weight: Weight for feature L1 loss
-            - dpd_weight: Weight for DPD loss
-            - fide_kl_weight: Weight for fidelity KL loss
-            - causal_weight: Weight for causal loss
-            - down_fold: Downstream loss scaling factor
-            - causal_fold: Causal loss scaling factor
-            - spurious_fold: Spurious loss scaling factor
-            - stage_training: Whether to use staged training
-            - weight_scheme: Weight update scheme
-            - im_factor: Imbalance factor for loss computation
-            - drop_last: Number of samples to drop from last batch
-            - **kwargs: Additional arguments
-            
-        Outputs:
-            - Trained model with updated parameters
-            - self.history: Training loss history
-            - self.ce_params: Causal effect computation parameters
+        Parameters
+        ----------
+        max_epochs
+            Maximum number of training epochs
+        lr
+            Learning rate for optimizer
+        use_gpu
+            Whether to use GPU for training
+        train_size
+            Proportion of data to use for training
+        validation_size
+            Proportion of data to use for validation
+        batch_size
+            Number of samples per batch
+        early_stopping
+            Whether to use early stopping
+        weight_decay
+            Weight decay for optimizer
+        n_x
+            Number of samples for causal effect computation
+        n_alpha
+            Monte-carlo samples per causal factor
+        n_beta
+            Monte-carlo samples per noncausal factor
+        recons_weight
+            Weight for reconstruction loss
+        kl_weight
+            Weight for KL divergence loss
+        up_weight
+            Weight for upstream reconstruction
+        down_weight
+            Weight for downstream reconstruction
+        feat_l1_weight
+            Weight for feature L1 loss
+        dpd_weight
+            Weight for DPD loss
+        fide_kl_weight
+            Weight for fidelity KL loss
+        causal_weight
+            Weight for causal loss
+        down_fold
+            Downstream loss scaling factor
+        causal_fold
+            Causal loss scaling factor
+        spurious_fold
+            Spurious loss scaling factor
+        stage_training
+            Whether to use staged training
+        weight_scheme
+            Weight update scheme
+        im_factor
+            Imbalance factor for loss computation
+        drop_last
+            Number of samples to drop from last batch
+        **kwargs
+            Additional arguments
         """
         # set_seed(42)
         # torch.autograd.set_detect_anomaly(True)
@@ -951,20 +961,24 @@ class CauTrigger1L(nn.Module):
             train_size: float = 1.0,
             validation_size: Optional[float] = None
     ):
-        """
-        Pretrain attention network.
-        
-        Inputs:
-            - prior_probs: Prior probabilities for attention weights
-            - max_epochs: Maximum number of pretraining epochs
-            - pretrain_lr: Learning rate for pretraining
-            - batch_size: Number of samples per batch
-            - use_gpu: Whether to use GPU for pretraining
-            - train_size: Proportion of data to use for pretraining
-            - validation_size: Proportion of data to use for validation
-            
-        Outputs:
-            - Pretrained attention network
+        """Pretrain attention network.
+
+        Parameters
+        ----------
+        prior_probs
+            Prior probabilities for attention weights
+        max_epochs
+            Maximum number of pretraining epochs
+        pretrain_lr
+            Learning rate for pretraining
+        batch_size
+            Number of samples per batch
+        use_gpu
+            Whether to use GPU for pretraining
+        train_size
+            Proportion of data to use for pretraining
+        validation_size
+            Proportion of data to use for validation
         """
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module.to(device)
@@ -1004,6 +1018,17 @@ class CauTrigger1L(nn.Module):
         print("Pretraining attention net completed.")
 
     def plot_train_losses(self, fig_size=(8, 8)):
+        """Plot training loss curves for all recorded losses during training.
+
+        This method visualizes the evolution of each loss component over epochs
+        using subplots. It requires that the model has been trained and that
+        training history is available in the `self.history` attribute.
+    
+        Parameters
+        ----------
+        fig_size : tuple of int, optional
+            Figure size (width, height) in inches. Default is (8, 8).
+        """
         # Set figure size
         fig = plt.figure(figsize=fig_size)
         if self.history is None:
@@ -1037,43 +1062,56 @@ class CauTrigger1L(nn.Module):
             sort_by_weight: Optional[bool] = True,
             class_idx: Optional[int] = None,
     ):
-        """
-        Return the weights of features.
-        
-        Inputs:
-            - method: Method for computing feature weights ("Model", "SHAP", "Grad", "Ensemble")
-            - n_bg_samples: Number of background samples for SHAP
-            - grad_source: Source for gradient computation ("prob", "logit", "loss")
-            - normalize: Whether to normalize weights
-            - sort_by_weight: Whether to sort features by weight
-            - class_idx: Class index for class-specific analysis
-            
-        Outputs:
-            - weights_df: DataFrame with feature weights
-            - weights_full: Full weight matrix
+        """Compute and return feature importance weights for the upstream feature mapper.
+    
+        This method supports multiple strategies to estimate feature contributions:
+        - **"Model"**: uses internal attention or learned weights from the model.
+        - **"SHAP"**: computes SHAP values using DeepExplainer.
+        - **"Grad"**: computes input gradients w.r.t. a specified output (e.g., probability or logit).
+        - **"Ensemble"**: averages normalized absolute weights from all three methods above.
+    
+        The resulting weights are aggregated across samples (by mean), optionally normalized,
+        and returned both as a sorted DataFrame aligned with `self.adata.var` and as a full
+        sample-by-feature weight matrix.
+    
+        Parameters
+        ----------
+        method : str, optional
+            Method to compute feature weights. One of {"Model", "SHAP", "Grad", "Ensemble"}.
+            Default is "SHAP".
+        n_bg_samples : int, optional
+            Number of background samples used for SHAP explanation. Only relevant if
+            `method="SHAP"`. Default is 100.
+        grad_source : str, optional
+            Target output for gradient computation when `method="Grad"`. Options are:
+            - "prob": gradients w.r.t. predicted probabilities,
+            - "logit": gradients w.r.t. logits,
+            - "loss": gradients w.r.t. the DPD loss.
+            Default is "prob".
+        normalize : bool, optional
+            Whether to normalize the final feature weights to sum to 1. Default is True.
+        sort_by_weight : bool, optional
+            Whether to sort the returned DataFrame by weight in descending order.
+            Default is True.
+        class_idx : int, optional
+            Class index for which to compute SHAP values (only used when labels are present
+            and `method="SHAP"`). If None, SHAP values are averaged over all classes or
+            computed on the full dataset. Default is None.
+    
+        Returns
+        -------
+        weights_df : pandas.DataFrame
+            DataFrame with the same index as `self.adata.var`, containing a new column
+            `'weight'` with the computed feature importance scores. Sorted by weight if
+            `sort_by_weight=True`.
+        weights_full : numpy.ndarray
+            Full sample-by-feature matrix of absolute weights before aggregation.
+            Shape: `(n_samples, n_features)`.
         """
         if self.module.training:
             self.module.eval()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         adata_batch = batch_sampler(self.adata, self.batch_size, shuffle=False)
-
-        # def compute_shap_weights(key="prob"):
-        #     # key = "prob" or "logit"
-        #     shap_weights_full = []
-        #     idx = np.random.permutation(self.adata.shape[0])[0:n_bg_samples]
-        #     background_data = torch.tensor(self.adata.X[idx], dtype=torch.float32)
-        #     background_data = background_data.to(device)
-        #
-        #     model = ShapModel(self.module, key).to(device)
-        #     explainer = shap.DeepExplainer(model, background_data)
-        #
-        #     for data in adata_batch:
-        #         inputs_up = torch.tensor(data.X, dtype=torch.float32, device=device)
-        #         # shap_value = explainer.shap_values(inputs_up)
-        #         shap_value = explainer.shap_values(inputs_up, check_additivity=False)
-        #         shap_weights_full.append(shap_value)
-        #
-        #     return np.concatenate(shap_weights_full, axis=0)
         def compute_shap_weights(key="prob", class_idx=None):
             # key = "prob" or "logit"
             idx = np.random.permutation(self.adata.shape[0])[0:n_bg_samples]
@@ -1176,47 +1214,42 @@ class CauTrigger1L(nn.Module):
         return weights_df, weights_full
 
     @torch.no_grad()
-    def get_down_feature_weights(self, normalize: Optional[bool] = True, sort_by_weight: Optional[bool] = True):
-        """
-        Return the weights of features.
-        """
-
-        def process_weights(feature_mapper, feature_names, original_df):
-            weights = feature_mapper.weight.cpu().detach().numpy()
-            weights = np.maximum(weights, 0)
-            if normalize:
-                weights = weights / np.sum(weights)
-            weights_df = pd.DataFrame(weights, index=feature_names, columns=['weight'])
-            final_df = original_df.copy().join(weights_df)
-            if sort_by_weight:
-                final_df = final_df.sort_values(by='weight', ascending=False)
-            return final_df
-
-        # final_df_up = process_weights(self.module.feature_mapper_up, self.adata.var_names, self.adata.var)
-        final_df_down = process_weights(self.module.feature_mapper_down, self.adata.uns['X_down_feature'].index,
-                                        self.adata.uns['X_down_feature'])
-
-        return final_df_down
-
-    @torch.no_grad()
     def get_model_output(
             self,
             adata: Optional[AnnData] = None,
             batch_size: Optional[int] = None,
     ):
-        """
-        Return the latent, dpd and predict label for each sample.
-        
-        Inputs:
-            - adata: AnnData object with input data
-            - batch_size: Batch size for processing
-            
-        Outputs:
-            - output: Dictionary with latent representations, logits, probabilities and predictions
-                - latent: Latent space representations
-                - logits: Classification logits
-                - probs: Classification probabilities
-                - preds: Predicted labels
+        """Obtain model predictions and latent representations for a given dataset.
+
+        This method runs the trained model in evaluation mode and returns:
+        - Concatenated latent embeddings from two latent spaces,
+        - Logits and predicted probabilities from the downstream classifier,
+        - Binary class predictions (thresholded at 0.5).
+    
+        If no `adata` is provided, the method uses the internal `self.adata`.
+    
+        Parameters
+        ----------
+        adata : AnnData, optional
+            Annotated data matrix to generate outputs for. If None, defaults to `self.adata`.
+            Default is None.
+        batch_size : int, optional
+            Number of samples per batch during inference. If None, uses `self.batch_size`.
+            Default is None.
+    
+        Returns
+        -------
+        output : dict
+            Dictionary containing the following keys:
+            - `'latent'`: numpy.ndarray of shape `(n_samples, n_latent1 + n_latent2)`,  
+              concatenated latent vectors from both latent modules.
+            - `'logits'`: numpy.ndarray of shape `(n_samples,)` or `(n_samples, n_classes)`,  
+              raw classifier logits.
+            - `'probs'`: numpy.ndarray of same shape as `'logits'`,  
+              predicted probabilities after sigmoid/softmax activation.
+            - `'preds'`: numpy.ndarray of shape `(n_samples,)`,  
+              binary predictions (1 if probability > 0.5, else 0).
+
         """
         if self.module.training:
             self.module.eval()
@@ -1259,18 +1292,29 @@ class CauTrigger1L(nn.Module):
         """
         Compute information flow for latent dimensions.
         
-        Inputs:
-            - adata: AnnData object with input data
-            - dims: Dimensions to compute information flow for
-            - zero_floor: Whether to subtract minimum value
-            - plot_info_flow: Whether to plot information flow
-            - skip_single_info: Whether to skip single dimension plots
-            - save_fig: Whether to save figures
-            - save_dir: Directory to save figures
+        Parameters
+        ----------
+        adata
+            AnnData object with input data
+        dims
+            Dimensions to compute information flow for
+        zero_floor
+            Whether to subtract minimum value
+        plot_info_flow
+            Whether to plot information flow
+        skip_single_info
+            Whether to skip single dimension plots
+        save_fig
+            Whether to save figures
+        save_dir
+            Directory to save figures
             
-        Outputs:
-            - info_flow: Information flow for each dimension
-            - info_flow_cat: Categorical information flow (causal vs spurious)
+        Returns
+        ----------
+        info_flow
+            Information flow for each dimension
+        info_flow_cat
+            Categorical information flow (causal vs spurious)
         """
         if self.module.training:
             self.module.eval()
@@ -1336,182 +1380,6 @@ class CauTrigger1L(nn.Module):
             plt.close()
 
         return info_flow, info_flow_cat
-
-    def perform_state_transition(
-            self,
-            adata=None,
-            causal_features=None,
-            causal_idx=None,  # Causal feature indices
-            grad_source="prob",  # gradient source
-            lr=0.01,  # learning rate
-            max_iter=100,  # number of iterations
-            min_iter=10,  # minimum number of iterations
-            optimizer_type="Adam",  # optimizer type
-            save_step=1,  # interval for saving the data
-            stop_thresh=1e-8,  # early stopping threshold
-            control_direction="increase",  # control direction
-            num_sampling=200,  # number of sampling
-            verbose=False,  # print training process
-    ):
-        """
-        Perform state transition by optimizing causal features.
-        
-        Inputs:
-            - adata: AnnData object with input data
-            - causal_features: List of causal feature names
-            - causal_idx: Indices of causal features
-            - grad_source: Source for gradient computation ("prob", "logit")
-            - lr: Learning rate for optimization
-            - max_iter: Maximum number of iterations
-            - min_iter: Minimum number of iterations
-            - optimizer_type: Type of optimizer ("Adam", "SGD", "RMSprop")
-            - save_step: Interval for saving intermediate results
-            - stop_thresh: Early stopping threshold
-            - control_direction: Direction of control ("increase", "decrease")
-            - num_sampling: Number of samples for surface plot
-            - verbose: Whether to print training process
-            
-        Outputs:
-            - adata: Updated AnnData object with:
-                - causal_update: Causal feature update trajectories
-                - causal_sampling: Sampled points with probabilities
-                - control_details: Controllability scores and details
-                - control_direction: Control direction used
-        """
-        self.module.eval() if self.module.training else None
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        adata = adata.copy() if adata is not None else self.adata.copy()
-        # Determine causal indices from causal features if provided
-        if causal_features is not None:
-            causal_idx = [adata.var_names.get_loc(feat) for feat in causal_features]
-        elif causal_idx is None:
-            causal_idx = list(range(adata.shape[1]))
-            print("Warning: No causal features or indices provided. Using all features.")
-
-        causal_update = {}
-        causal_sampling = {}  # causal sampling
-        control_details = pd.DataFrame()
-
-        for i, sample in enumerate(adata.X):
-            orig_causal_sample = sample[causal_idx].copy()  # Original causal features
-            causal_sample = sample[causal_idx]
-            sample_update = []
-            initial_prob = None
-            last_prob = None  # last prob
-            print(f"Processing sample {i}, Target direction: {control_direction}")
-
-            tensor_sample = torch.tensor(sample, dtype=torch.float32, device=device)
-            causal_tensor = torch.tensor(causal_sample, dtype=torch.float32, device=device, requires_grad=True)
-
-            # Initialize optimizer for causal_tensor
-            if optimizer_type == "Adam":  # default
-                optimizer = optim.Adam([causal_tensor], lr=lr)
-            elif optimizer_type == "SGD":  # not recommended
-                optimizer = optim.SGD([causal_tensor], lr=lr)
-            elif optimizer_type == "RMSprop":  # adaptive learning rate
-                optimizer = optim.RMSprop([causal_tensor], lr=lr)
-            # elif optimizer_type == "Adagrad":  # sparse data
-            #     optimizer = optim.Adagrad([causal_tensor], lr=lr)
-            # elif optimizer_type == "AdamW":  # adam with weight decay
-            #     optimizer = optim.AdamW([causal_tensor], lr=lr)
-            else:
-                raise ValueError(f"Unsupported optimizer type: {optimizer_type}")
-
-            # =================== causal feature update ===================
-            prob = None
-            for iter in range(max_iter):
-                optimizer.zero_grad()
-                tensor_sample = tensor_sample.clone().detach()  # Clone and detach tensor_sample
-                tensor_sample[causal_idx] = causal_tensor
-
-                # forward propagation
-                outputs = self.module(tensor_sample.unsqueeze(0), use_mean=True)
-                prob = outputs["alpha_dpd"]["prob"]
-                logit = outputs["alpha_dpd"]["logit"]
-                current_prob = prob.item()
-
-                # initial_prob
-                if iter == 0:
-                    initial_prob = current_prob
-                else:
-                    prob_change = current_prob - last_prob
-                    if iter > min_iter and abs(prob_change) < stop_thresh:
-                        print(f"Early stopping at iteration {iter} for sample {i}")
-                        break
-                last_prob = current_prob  # update last prob
-
-                # backward propagation
-                target = logit if grad_source == "logit" else prob
-                target = -target if control_direction == "increase" else target
-                target.backward()
-
-                # update causal features
-                optimizer.step()
-
-                # save updated sample and probability
-                if iter % save_step == 0:
-                    x_delta = np.linalg.norm(causal_tensor.detach().cpu().numpy() - orig_causal_sample)
-                    record = {'iteration': iter, 'prob': prob.item(), 'x_delta': x_delta}
-                    if verbose:
-                        print(record)
-                    for feature_name, feature_value in zip(adata.var_names[causal_idx],
-                                                           tensor_sample[causal_idx].detach().cpu().numpy()):
-                        record[feature_name] = feature_value
-                    sample_update.append(record)
-
-            # Convert updates to DataFrame and store
-            update_data = pd.DataFrame(sample_update)
-            causal_update[i] = update_data
-
-            # ==================== calculate controllability score ====================
-            causal_delta = np.linalg.norm(orig_causal_sample - causal_tensor.detach().cpu().numpy())
-            prob_delta = abs(prob.item() - initial_prob)
-            score = prob_delta / (max(np.log(iter), 1) * causal_delta)
-            control_item = {
-                'sample_idx': int(i),
-                'sample_name': adata.obs_names[i],  # sample name
-                'score': score,
-                'prob_delta': prob_delta,
-                'causal_delta': causal_delta,
-                'n_iter': iter,
-            }
-            control_item_df = pd.DataFrame.from_dict(control_item, orient='index').T
-            control_details = pd.concat([control_details, control_item_df], ignore_index=True)
-
-            # causal sampling for surface plot
-            feature_columns = update_data.columns[3:]  # causal feature columns
-
-            # Sampling from the causal feature space
-            sampled_points = np.zeros((num_sampling, len(feature_columns)))
-
-            for j, feature in enumerate(feature_columns):
-                min_value = adata.X[:, causal_idx[j]].min()
-                max_value = adata.X[:, causal_idx[j]].max()
-                # min_value = update_data[feature].min()
-                # max_value = update_data[feature].max()
-                sampled_points[:, j] = np.random.uniform(low=min_value, high=max_value, size=num_sampling)
-
-            # =================== sampling from the causal feature space ===================
-            batch_samples = np.tile(sample, (num_sampling, 1))  # repeat the sample
-            batch_samples[:, causal_idx] = sampled_points  # replace causal features
-
-            # get the probability of the sampled points
-            tensor_batch_samples = torch.tensor(batch_samples, dtype=torch.float32).to(device)
-            outputs = self.module(tensor_batch_samples, use_mean=True)
-            probs = outputs["alpha_dpd"]["prob"].detach().cpu().numpy()
-
-            # concat sampled points and probability
-            sampled_data = pd.DataFrame(sampled_points, columns=feature_columns)
-            sampled_data['prob'] = probs
-            causal_sampling[i] = sampled_data
-
-        # save updated data and control score
-        adata.uns["causal_update"] = causal_update
-        adata.uns["causal_sampling"] = causal_sampling
-        adata.uns["control_details"] = control_details
-        adata.uns["control_direction"] = control_direction
-
-        return adata
 
 
 class CauTrigger2L(nn.Module):
