@@ -4,7 +4,7 @@
 
 ```{eval-rst}
 .. module:: cautrigger
-.. currentmodule:: cautrigger
+.. currentmodule:: model
 
 .. autosummary::
     :toctree: generated
@@ -17,7 +17,7 @@
 
 ```{eval-rst}
 .. module:: cautrigger
-.. currentmodule:: cautrigger
+.. currentmodule:: causaleffect
 
 .. autosummary::
     :toctree: generated
@@ -29,7 +29,7 @@
 
 ```{eval-rst}
 .. module:: cautrigger
-.. currentmodule:: cautrigger
+.. currentmodule:: utils
 
 .. autosummary::
     :toctree: generated
