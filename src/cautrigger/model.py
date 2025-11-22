@@ -30,7 +30,7 @@ from cautrigger.utils import set_seed
 
 
 class CauTrigger1L(nn.Module):
-    """First-layer causal generative model for perturbation-response modelling.
+    r"""First-layer causal generative model for perturbation-response modelling.
     CauTrigger1L wraps a single-layer DualVAE1L module and provides training and
     interpretation utilities for modelling how features signals causally affect 
     state. The model is designed for scenarios where all features are in one layer
@@ -108,7 +108,7 @@ class CauTrigger1L(nn.Module):
             drop_last: int = 10,
             **kwargs,
     ):
-        """Trains the model using fractal variational autoencoder.
+        r"""Trains the model using fractal variational autoencoder.
         
         Parameters
         ----------
@@ -300,7 +300,7 @@ class CauTrigger1L(nn.Module):
             train_size: float = 1.0,
             validation_size: Optional[float] = None
     ):
-        """Pretrain attention network.
+        r"""Pretrain attention network.
 
         Parameters
         ----------
@@ -357,7 +357,7 @@ class CauTrigger1L(nn.Module):
         print("Pretraining attention net completed.")
 
     def plot_train_losses(self, fig_size=(8, 8)):
-        """Plot training loss curves for all recorded losses during training.
+        r"""Plot training loss curves for all recorded losses during training.
 
         This method visualizes the evolution of each loss component over epochs
         using subplots. It requires that the model has been trained and that
@@ -401,7 +401,7 @@ class CauTrigger1L(nn.Module):
             sort_by_weight: Optional[bool] = True,
             class_idx: Optional[int] = None,
     ):
-        """Compute and return feature importance weights for the upstream feature mapper.
+        r"""Compute and return feature importance weights for the upstream feature mapper.
     
         This method supports multiple strategies to estimate feature contributions:
         - **"Model"**: uses internal attention or learned weights from the model.
@@ -558,7 +558,7 @@ class CauTrigger1L(nn.Module):
             adata: Optional[AnnData] = None,
             batch_size: Optional[int] = None,
     ):
-        """Obtain model predictions and latent representations for a given dataset.
+        r"""Obtain model predictions and latent representations for a given dataset.
 
         This method runs the trained model in evaluation mode and returns:
         - Concatenated latent embeddings from two latent spaces,
@@ -628,7 +628,7 @@ class CauTrigger1L(nn.Module):
             save_fig: Optional[bool] = False,
             save_dir: Optional[str] = None,
     ):
-        """
+        r"""
         Compute information flow for latent dimensions.
         
         Parameters
@@ -722,7 +722,7 @@ class CauTrigger1L(nn.Module):
 
 
 class CauTrigger2L(nn.Module):
-    """Second-layer hierarchical causal decomposition model.
+    r"""Second-layer hierarchical causal decomposition model.
     CauTrigger2L wraps a DualVAE2L backbone and supports a second-stage causal
     decomposition (e.g., upstream -> downstream -> state).
 
@@ -799,7 +799,7 @@ class CauTrigger2L(nn.Module):
             drop_last: int = 10,
             **kwargs,
     ):
-        """Trains the model using fractal variational autoencoder.
+        r"""Trains the model using fractal variational autoencoder.
         
         Parameters
         ----------
@@ -992,7 +992,7 @@ class CauTrigger2L(nn.Module):
             train_size: float = 1.0,
             validation_size: Optional[float] = None
     ):
-        """Pretrain attention network.
+        r"""Pretrain attention network.
 
         Parameters
         ----------
@@ -1049,7 +1049,7 @@ class CauTrigger2L(nn.Module):
         print("Pretraining attention net completed.")
 
     def plot_train_losses(self, fig_size=(8, 8)):
-        """Plot training loss curves for all recorded losses during training.
+        r"""Plot training loss curves for all recorded losses during training.
 
         This method visualizes the evolution of each loss component over epochs
         using subplots. It requires that the model has been trained and that
@@ -1096,7 +1096,7 @@ class CauTrigger2L(nn.Module):
             background_data: Optional[torch.Tensor] = None,
             return_background: Optional[bool] = False,
     ):
-        """Compute and return feature importance weights for the upstream feature mapper.
+        r"""Compute and return feature importance weights for the upstream feature mapper.
     
         This method supports multiple strategies to estimate feature contributions:
         - **"Model"**: uses internal attention or learned weights from the model.
@@ -1280,7 +1280,7 @@ class CauTrigger2L(nn.Module):
             show_progress: bool = True,
             random_state: Optional[int] = 42,
     ):
-        """
+        r"""
         Compute significance of upstream feature weights using:
         - Grad  → Binomial sign-consistency test
         - SHAP  → Binomial sign-consistency test or permutation test
@@ -1522,7 +1522,7 @@ class CauTrigger2L(nn.Module):
             celltype=None,
             baseline=None,
     ):
-        """Compute Integrated Gradients (IG) attributions from UP features to DOWN features.
+        r"""Compute Integrated Gradients (IG) attributions from UP features to DOWN features.
         This method calculates feature-wise attribution scores using Integrated Gradients
         to understand how each up influences each down in the model.
     
@@ -1624,7 +1624,7 @@ class CauTrigger2L(nn.Module):
             adata: Optional[AnnData] = None,
             batch_size: Optional[int] = None,
     ):
-        """Obtain model predictions and latent representations for a given dataset.
+        r"""Obtain model predictions and latent representations for a given dataset.
 
         This method runs the trained model in evaluation mode and returns:
         - Concatenated latent embeddings from two latent spaces,
@@ -1697,7 +1697,7 @@ class CauTrigger2L(nn.Module):
             save_fig: Optional[bool] = False,
             save_dir: Optional[str] = None,
     ):
-        """
+        r"""
         Compute information flow for latent dimensions.
         
         Parameters
@@ -1791,7 +1791,7 @@ class CauTrigger2L(nn.Module):
 
 
 class CauTrigger3L(nn.Module):
-    """Third-layer hierarchical causal decomposition model.
+    r"""Third-layer hierarchical causal decomposition model.
     CauTrigger3L wraps a DualVAE3L module and supports third-stage causal decomposition
     (eg. x3 → xc2 → xc1 → y). It is intended for modelling complex cascades where
     effects propagate through multiple intermediate regulatory layers (for instance,
@@ -1870,7 +1870,7 @@ class CauTrigger3L(nn.Module):
             drop_last: Union[bool, int] = False,
             **kwargs,
     ):
-        """Trains the model using fractal variational autoencoder.
+        r"""Trains the model using fractal variational autoencoder.
         
         Parameters
         ----------
@@ -2071,7 +2071,7 @@ class CauTrigger3L(nn.Module):
             train_size: float = 1.0,
             validation_size: Optional[float] = None
     ):
-        """Pretrain attention network.
+        r"""Pretrain attention network.
 
         Parameters
         ----------
@@ -2128,7 +2128,7 @@ class CauTrigger3L(nn.Module):
         print("Pretraining attention net completed.")
 
     def plot_train_losses(self, fig_size=(8, 8)):
-        """Plot training loss curves for all recorded losses during training.
+        r"""Plot training loss curves for all recorded losses during training.
 
         This method visualizes the evolution of each loss component over epochs
         using subplots. It requires that the model has been trained and that
@@ -2172,7 +2172,7 @@ class CauTrigger3L(nn.Module):
             sort_by_weight: Optional[bool] = False,
             class_idx: Optional[int] = None,
     ):
-        """Obtain model predictions and latent representations for a given dataset.
+        r"""Obtain model predictions and latent representations for a given dataset.
 
         This method runs the trained model in evaluation mode and returns:
         - Concatenated latent embeddings from two latent spaces,
@@ -2481,7 +2481,7 @@ class CauTrigger3L(nn.Module):
             adata: Optional[AnnData] = None,
             batch_size: Optional[int] = None,
     ):
-        """Obtain model predictions and latent representations for a given dataset.
+        r"""Obtain model predictions and latent representations for a given dataset.
 
         This method runs the trained model in evaluation mode and returns:
         - Concatenated latent embeddings from two latent spaces,
@@ -2558,7 +2558,7 @@ class CauTrigger3L(nn.Module):
             save_fig: Optional[bool] = False,
             save_dir: Optional[str] = None,
     ):
-        """
+        r"""
         Compute information flow for latent dimensions.
         
         Parameters
