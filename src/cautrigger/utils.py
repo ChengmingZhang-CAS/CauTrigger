@@ -242,7 +242,7 @@ def plot_vector_field(adata,pert_Gene=None,pert_celltype=None,state_obs=None,emb
 
 def pert_plot_vector_field(adata_TF, adata_down, model, pert_Gene,pert_celltype, run_suggest_mass_thresholds,fold,state_obs,dot_size=None, scale=0.1, min_mass=0.008,save_dir=None,embedding_name='X_tsne',n_neighbors=None,n_grid=40,palette=None,direction=None):
     """
-    Perform in silico perturbation and visualize the resulting vector field to show cell state transitions. The method of drawing vector field map is borrowed from method CellOracle
+    Perform in silico perturbation and visualize the resulting vector field to show cell state transitions. The method of drawing vector field map is borrowed from method CellOracle :cite:`kamimoto_dissecting_2023`.
 
     Parameters:
         - adata_TF [AnnData]: Annotated data object containing transcription factor expression data.
@@ -267,6 +267,11 @@ def pert_plot_vector_field(adata_TF, adata_down, model, pert_Gene,pert_celltype,
         - direction [str, optional]: Label indicating perturbation direction for figure title. Default is None.
     Returns:
         - model_output_pert [dict]: Model output after applying perturbations.
+
+    References
+    ----------
+    .. bibliography::
+       :list: kamimoto_dissecting_2023
     """
     model.eval()
     with torch.no_grad():
@@ -503,7 +508,7 @@ def plot_stream(adata,pert_Gene=None,pert_celltype=None,state_obs=None,embedding
 
 def pert_plot_stream(adata_TF, adata_down, model, pert_Gene,pert_celltype, run_suggest_mass_thresholds,fold,state_obs,dot_size=None, scale=0.1, min_mass=0.008,save_dir=None,embedding_name='X_tsne',n_neighbors=None,n_grid=40,palette=None,direction=None):
     """
-    Perform in silico perturbation and visualize the resulting streamlines (trajectories) to show cell state transitions. This is generally same to the vector field map but change vectors to streamlines. The method of drawing vector field map is borrowed from method CellOracle
+    Perform in silico perturbation and visualize the resulting streamlines (trajectories) to show cell state transitions. This is generally same to the vector field map but change vectors to streamlines. The method of drawing vector field map is borrowed from method CellOracle :cite:`kamimoto_dissecting_2023`.
 
     Parameters:
         - adata_TF [AnnData]: Annotated data object containing transcription factor expression data.
@@ -528,6 +533,11 @@ def pert_plot_stream(adata_TF, adata_down, model, pert_Gene,pert_celltype, run_s
         - direction [str, optional]: Label indicating perturbation direction for figure title. Default is None.
     Returns:
         - model_output_pert [dict]: Model output after applying  perturbations.
+
+    References
+    ----------
+    .. bibliography::
+       :list: kamimoto_dissecting_2023
     """
     model.eval()
     with torch.no_grad():
