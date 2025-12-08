@@ -29,19 +29,41 @@ in particular, the [API documentation][].
 
 You need to have Python 3.10 or newer installed on your system. This process will be completed in just a few minutes under normal network conditions.
 
-<!--
-1) Install the latest release of `CauTrigger` from [PyPI][]:
-
-```bash
-pip install CauTrigger
-```
--->
 
 ```bash
 pip install git+https://github.com/ChengmingZhang-CAS/CauTrigger.git@main
 ```
 
+## Analyze Your Own Datasets
+### Step 1: Prepare Your Dataset
+- Load preprocessed data in adata format
+- `var` has a *unique* index (e.g. gene symbol)
+- `obs` has a *unique* index and one column indicating the states (e.g. 'cell_type', 'state')
+- If you want to use CauTrigger-2L or 3L, `obsm` must have corresponding feature matrix called 'X_down' or ('X_down1', 'X_down2)
+- Any 2D visualizations/embeddings (e.g., UMAP, t-SNE) that should be available and need to adhere to these rules:
+  - stored in `.obsm` with name `X_{name}`
+  - type: `np.ndarray` (NOT `pd.DataFrame`), dtype: float/int/uint
+  - shape: `(n_obs, 2)`
+  - all values finite or NaN (NO +Inf or -Inf)
 
+### Step 2: Run CauTrigger
+```bash
+model = CauTrigger1L(adata)
+model.train()
+```
+
+### Step 3: Analysis
+Select potential causal triggers. We use top-k=10 here as example, you can select by other way
+```bash
+topk = 10
+weight_df_weight1 = model.get_up_feature_weights(normalize=True, method="Grad", sort_by_weight=False)[0]['weight']
+causal_factors_layer1_indices = np.argsort(weight_df_weight1)[-topk:][::-1]
+```
+
+Visualize the causal latent space and then you can do in silico perturbation on it or others(e.g. UMAP)
+```bash
+adata.obsm['X_ct'] = model.get_model_output()['latent'][:, :2]
+```
 
 ## Contact
 
