@@ -33,6 +33,7 @@ You need to have Python 3.10 or newer installed on your system. This process wil
 ```bash
 pip install git+https://github.com/ChengmingZhang-CAS/CauTrigger.git@main
 ```
+The velocyto package is installed here to utilize its colDeltaCorpartial function for calculating local partial correlations. Since this function depends on Cython extensions, prerequisites like Cython and NumPy must be pre-installed. For the full installation guide, please refer to the official documentation [velocyto-install][].
 
 ## Analyze Your Own Datasets
 ### Step 1: Prepare Your Dataset
@@ -81,3 +82,4 @@ If you found a bug, please use the [issue tracker][].
 [changelog]: https://cautrigger.readthedocs.io/en/latest/changelog.html
 [api documentation]: https://cautrigger.readthedocs.io/en/latest/api.html
 [pypi]: https://pypi.org/project/CauTrigger
+[velocyto-install]: https://velocyto.org/velocyto.py/install/index.html#
