@@ -60,7 +60,10 @@ def plot_vector_field(adata,pert_Gene=None,pert_celltype=None,state_obs=None,emb
                      n_suggestion=12,show=True,dot_size=None,run_suggest_mass_thresholds=False,direction=None,n_neighbors=None,palette=None):
     from scipy import sparse
     from sklearn.neighbors import NearestNeighbors
-    from velocyto.estimation import colDeltaCorpartial
+    try:
+        from velocyto.estimation import colDeltaCorpartial
+    except ImportError as e:
+        print("Plear install velocyto")
     from scipy.stats import norm as normal
     import math
 
@@ -305,7 +308,10 @@ def plot_stream(adata,pert_Gene=None,pert_celltype=None,state_obs=None,embedding
                      n_suggestion=12,show=True,dot_size=None,run_suggest_mass_thresholds=False,direction=None,n_neighbors=None,palette=None):
     from scipy import sparse
     from sklearn.neighbors import NearestNeighbors
-    from velocyto.estimation import colDeltaCorpartial
+    try:
+        from velocyto.estimation import colDeltaCorpartial
+    except ImportError as e:
+        print("Plear install velocyto")
     from scipy.stats import norm as normal
     import math
 
