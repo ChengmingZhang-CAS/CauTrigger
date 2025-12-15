@@ -45,8 +45,8 @@ pip install git+https://github.com/ChengmingZhang-CAS/CauTrigger.git@main
 
 The `velocyto` package is used to access the `colDeltaCorpartial` function for calculating local partial correlations. Since this function depends on Cython extensions, prerequisites like Cython and NumPy must be pre-installed. For the full installation guide, please refer to the official documentation [velocyto-install][].
 
-## Analyze Your Own Datasets
-### Step 1: Prepare Your Dataset
+## Analyze your own datasets
+### Step 1: Prepare your dataset
 **Core AnnData structure**
 - `adata` is a preprocessed `AnnData` object (cells in `obs`, features in `var`).
 - `adata.var` has a *unique* index (e.g. gene symbols).
