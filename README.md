@@ -3,7 +3,6 @@
 [![Tests][badge-tests]][tests]
 [![Documentation][badge-docs]][documentation]
 
-
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/ChengmingZhang-CAS/CauTrigger/test.yaml?branch=main
 [badge-docs]: https://img.shields.io/readthedocs/CauTrigger
 
@@ -16,70 +15,86 @@
 </div>
 
 > <small>
-Causal decoupling model constructed on a dual-flow variational autoencoder (DFVAE) framework to identify causal triggers influencing state transition. Triggers ($x^n$) are processed through a feature selection layer to separate causal triggers ($x^{c_n}$) and others ($\tilde{x}^{c_n}$ ), and then encoded them into latent space $z$ consists of causal ($z^{c_n}$) and spurious ($z^{s_n}$) components. This latent space is decoded to generate downstream conductors ($x^{c_{n-1}},...,x^{c_1}$) and to predict the final cell state ($y$). The model strives to maximize the causal information flow, $I(z^{c_n}→y)$, from $z^{c_n}$ to $y$, thus delineating the causal path from $x^{c_n}$ to $y$ via $z^{c_n}$.
+CauTrigger is a causal decoupling model constructed on a dual-flow variational autoencoder (DFVAE) framework to identify causal triggers that influence biological state transitions in a hierarchical manner. Triggers ($x^n$) are processed through a feature selection layer to separate causal triggers ($x^{c_n}$) and others ($\tilde{x}^{c_n}$), and are then encoded into a latent space $z$ that consists of causal ($z^{c_n}$) and spurious ($z^{s_n}$) components. This latent space is decoded to generate downstream conductors ($x^{c_{n-1}}, \dots, x^{c_1}$) and to predict the final cell state ($y$). The model strives to maximize the causal information flow $I(z^{c_n} \rightarrow y)$ from $z^{c_n}$ to $y$, thereby delineating hierarchical causal paths from $x^{c_n}$ to $y$ via $z^{c_n}$.
 > </small>
+
 ---
 
 ## Getting started
 
-Please refer to the [documentation][],
-in particular, the [API documentation][].
+Please refer to the [documentation][] for installation instructions, API reference, and end-to-end tutorials.
+
+## Tutorials at a glance
+
+The documentation includes four end-to-end tutorials (see the [tutorials section](https://cautrigger.readthedocs.io/en/latest/notebooks/index.html)):
+
+- **Two-layer synthetic causal simulation** – demonstrates how CauTrigger recovers known causal vs. spurious features in a controlled two-layer system.
+- **hESC differentiation causal analysis** – applies a two-layer TF/TG model to human embryonic stem cell differentiation (0 h vs 96 h).
+- **T2D multi-omics causal analysis** – uses a three-layer TF–CRE–TG hierarchy to analyze pancreatic islet multi-omics in control, pre-T2D, and T2D donors.
+- **Gut–brain axis hierarchical analysis in ASD** – models microbiota → host proteome → ASD states to illustrate hierarchical triggers and in silico perturbation.
+
+For new applications, we recommend starting from the tutorial whose data structure is closest to your own dataset and adapting the data-preparation steps accordingly.
 
 ## Installation
 
-You need to have Python 3.10 or newer installed on your system. This process will be completed in just a few minutes under normal network conditions.
-
+You need to have Python 3.10 or newer installed on your system. Installation usually finishes within a few minutes.
 
 ```bash
 pip install git+https://github.com/ChengmingZhang-CAS/CauTrigger.git@main
 ```
-The velocyto package is installed here to utilize its colDeltaCorpartial function for calculating local partial correlations. Since this function depends on Cython extensions, prerequisites like Cython and NumPy must be pre-installed. For the full installation guide, please refer to the official documentation [velocyto-install][].
+
+The `velocyto` package is used to access the `colDeltaCorpartial` function for calculating local partial correlations. Since this function depends on Cython extensions, prerequisites like Cython and NumPy must be pre-installed. For the full installation guide, please refer to the official documentation [velocyto-install][].
 
 ## Analyze Your Own Datasets
 ### Step 1: Prepare Your Dataset
-- Load preprocessed data in adata format
-- `var` has a *unique* index (e.g. gene symbol)
-- `obs` has a *unique* index and one column indicating the states (e.g. 'cell_type', 'state')
-- If you want to use CauTrigger-2L or 3L, `obsm` must have corresponding feature matrix called 'X_down' or ('X_down1', 'X_down2)
-- Any 2D visualizations/embeddings (e.g., UMAP, t-SNE) that should be available and need to adhere to these rules:
-  - stored in `.obsm` with name `X_{name}`
-  - type: `np.ndarray` (NOT `pd.DataFrame`), dtype: float/int/uint
-  - shape: `(n_obs, 2)`
-  - all values finite or NaN (NO +Inf or -Inf)
+**Core AnnData structure**
+- `adata` is a preprocessed `AnnData` object (cells in `obs`, features in `var`).
+- `adata.var` has a *unique* index (e.g. gene symbols).
+- `adata.obs` has a *unique* index for all cells.
+
+**State labels**
+- The system state $y$ is stored in a numeric column `"labels"` in `adata.obs`.
+  - For binary tasks (`n_state = 2`), `"labels"` should lie in [0, 1] (e.g. 0/1 or continuous values).
+  - For multi-class tasks (`n_state > 2`), `"labels"` contains integer class indices 0, 1, ..., `n_state - 1`.
+
+**Hierarchical inputs (2-layer / 3-layer)**
+- For CauTrigger-2L or 3L, `adata.obsm` contains the downstream feature matrices, e.g. `'X_down'` or (`'X_down1'`, `'X_down2'`). See the tutorials for complete two-layer and three-layer examples.
 
 ### Step 2: Run CauTrigger
-```bash
+```python
 model = CauTrigger1L(adata)
 model.train()
 ```
 
 ### Step 3: Analysis
-Select potential causal triggers. We use top-k=10 here as example, you can select by other way
-```bash
+Select potential causal triggers. By default, SHAP-based attribution is used; you may optionally switch to gradient-based attribution by setting `method="Grad"`.
+
+```python
 topk = 10
-weight_df_weight1 = model.get_up_feature_weights(normalize=True, method="Grad", sort_by_weight=False)[0]['weight']
+weight_df_weight1 = model.get_up_feature_weights(
+    normalize=True,
+    method="SHAP",  # default; use "Grad" for gradient-based attribution
+    sort_by_weight=False
+)[0]["weight"]
 causal_factors_layer1_indices = np.argsort(weight_df_weight1)[-topk:][::-1]
 ```
 
-Visualize the causal latent space and then you can do in silico perturbation on it or others(e.g. UMAP)
-```bash
-adata.obsm['X_ct'] = model.get_model_output()['latent'][:, :2]
+Visualize the causal latent space and then you can do in silico perturbation on it or other embeddings (e.g. UMAP):
+
+```python
+adata.obsm["X_ct"] = model.get_model_output()["latent"][:, :2]
 ```
 
 ## Contact
-
-For questions and help requests, you can reach out in the [scverse discourse][].
-If you found a bug, please use the [issue tracker][].
+For questions, discussions, or bug reports, please use the GitHub issue tracker.
+- **GitHub Issues**: https://github.com/ChengmingZhang-CAS/CauTrigger/issues
 
 ## Citation
 
 > t.b.a
 
-[scverse discourse]: https://discourse.scverse.org/
 [issue tracker]: https://github.com/ChengmingZhang-CAS/CauTrigger/issues
-[tests]: https://github.com/ChengmingZhang-CAS/CauTrigger/actions/workflows/test.yaml
 [documentation]: https://cautrigger.readthedocs.io
 [changelog]: https://cautrigger.readthedocs.io/en/latest/changelog.html
 [api documentation]: https://cautrigger.readthedocs.io/en/latest/api.html
-[pypi]: https://pypi.org/project/CauTrigger
 [velocyto-install]: https://velocyto.org/velocyto.py/install/index.html#
