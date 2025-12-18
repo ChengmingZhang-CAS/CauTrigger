@@ -1658,7 +1658,7 @@ def plot_layerwise_metrics(df, output_dir, causal_strength=0.4, p_zero=0.2):
         metric_tag = metric.lower()
 
         # === Boxplot ===
-        plt.figure(figsize=(7, 3.5))
+        plt.figure(figsize=(9, 6))
         ax = sns.boxplot(
             data=df,
             x="Method",
@@ -1766,7 +1766,7 @@ def plot_layerwise_metrics(df, output_dir, causal_strength=0.4, p_zero=0.2):
         plt.close()
 
         # === Violinplot ===
-        plt.figure(figsize=(7, 3.5))
+        plt.figure(figsize=(9, 6))
         ax = sns.violinplot(
             data=df,
             x="Method",
@@ -1862,7 +1862,7 @@ def plot_layerwise_metrics(df, output_dir, causal_strength=0.4, p_zero=0.2):
 
         # === Barplot ===
         summary_df = df.groupby(["Method", "Layer"])[metric].agg(["mean", "std"]).reset_index()
-        plt.figure(figsize=(7, 3.5))
+        plt.figure(figsize=(9, 6))
 
         ax = sns.barplot(
             data=summary_df,
@@ -2377,13 +2377,17 @@ def plot_aggregate_layerwise_metrics(
     spurious_mode='semi_hrc',
     n_hidden=10,
     activation='linear',
-    simulate_single_cell=True
+    simulate_single_cell=True,
+    suffix=None
 ):
     """
     Aggregate layer-wise benchmark metrics across different parameter combinations
     and generate 3×3 boxplots for AUROC/AUPR. A unified legend is placed below the
     title for clean visual comparison (Nature Methods style).
     """
+    hp = (hierarchy_prefix or "").lower()
+    is_unknown = "unknown" in hp
+    is_known = ("known" in hp) and (not is_unknown)
 
     sns.set_theme(style="white")
     plt.rcParams.update({
@@ -2472,6 +2476,13 @@ def plot_aggregate_layerwise_metrics(
             ax.tick_params(axis='x', rotation=30)
             ax.legend_.remove()
             ax.grid(False)
+
+            # add grey line
+            if is_known:
+                n_methods = df['Method'].nunique()
+                for i in range(1, n_methods):
+                    ax.axvline(x=i - 0.5, linestyle='--', color='lightgray', linewidth=0.6, zorder=0)
+
             # === Significance annotation (pairwise t-test vs. CauTrigger) ===
             method_order = df['Method'].cat.categories.tolist()
             layer_list = list(df["Layer"].cat.categories)
@@ -2526,7 +2537,9 @@ def plot_aggregate_layerwise_metrics(
             #     ax.axvline(x=i - 0.5, linestyle='--', color='lightgray', linewidth=0.6, zorder=0)
 
         # Set the main title; no vertical offset is needed due to legend placement
-        fig.suptitle(f"Overall {metric} across methods", fontsize=18, y=1.02)
+        title_prefix = "Overall" if is_unknown else "Layer-wise"
+        fig.suptitle(f"{title_prefix} {metric} across methods", fontsize=18, y=1.02)
+        # fig.suptitle(f"Overall {metric} across methods", fontsize=18, y=1.02)
 
         # Add a unified legend below the title
         handles, labels = ax.get_legend_handles_labels()
@@ -2540,6 +2553,8 @@ def plot_aggregate_layerwise_metrics(
 
         plt.tight_layout()
         out_prefix = f"{base_tag}_boxplot_{metric}"
+        if suffix is not None:
+            out_prefix = f"{out_prefix}_{suffix}"
         fig.savefig(os.path.join(root_output_dir, f"{out_prefix}.pdf"), bbox_inches='tight')
         fig.savefig(os.path.join(root_output_dir, f"{out_prefix}.png"), bbox_inches='tight')
         print(f"[INFO] Saved: {out_prefix}.pdf/.png")
