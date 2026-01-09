@@ -394,12 +394,15 @@ class CauTrigger1L(nn.Module):
 
     def get_up_feature_weights(
             self,
+            adata: Optional[AnnData] = None,
             method: Optional[str] = "SHAP",
             n_bg_samples: Optional[int] = 100,
             grad_source: Optional[str] = "prob",
             normalize: Optional[bool] = True,
             sort_by_weight: Optional[bool] = True,
             class_idx: Optional[int] = None,
+            background_data: Optional[torch.Tensor] = None,
+            return_background: Optional[bool] = False,
     ):
         r"""Compute and return feature importance weights for the upstream feature mapper.
     
@@ -415,6 +418,8 @@ class CauTrigger1L(nn.Module):
     
         Parameters
         ----------
+        adata : AnnData, optional
+            AnnData object containing the data to compute feature weights on.
         method : str, optional
             Method to compute feature weights. One of {"Model", "SHAP", "Grad", "Ensemble"}.
             Default is "SHAP".
@@ -450,26 +455,32 @@ class CauTrigger1L(nn.Module):
         if self.module.training:
             self.module.eval()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        adata_batch = batch_sampler(self.adata, self.batch_size, shuffle=False)
-        def compute_shap_weights(key="prob", class_idx=None):
+        adata = adata if adata is not None else self.adata
+
+        adata_batch = batch_sampler(adata, self.batch_size, shuffle=False)
+        def compute_shap_weights(key="prob", class_idx=None, background_data=None):
             # key = "prob" or "logit"
-            idx = np.random.permutation(self.adata.shape[0])[0:n_bg_samples]
-            background_data = torch.tensor(self.adata.X[idx], dtype=torch.float32).to(device)
+            if background_data is None:
+                idx = np.random.permutation(adata.shape[0])[0:n_bg_samples]
+                background_data = torch.tensor(adata.X[idx], dtype=torch.float32).to(device)
+            else:
+                # background_data from predefined matrix
+                background_data = background_data.to(device)
 
             model = ShapModel(self.module, key).to(device)
             explainer = shap.DeepExplainer(model, background_data)
 
             if class_idx is not None:
-                adata_subset = self.adata[self.adata.obs['labels'] == class_idx].copy()
+                adata_subset = adata[adata.obs['labels'] == class_idx].copy()
                 inputs_up = torch.tensor(adata_subset.X, dtype=torch.float32).to(device)
             else:
-                inputs_up = torch.tensor(self.adata.X, dtype=torch.float32, device=device)
+                inputs_up = torch.tensor(adata.X, dtype=torch.float32, device=device)
             # shap_value = explainer.shap_values(inputs_up)
             shap_value = explainer.shap_values(inputs_up, check_additivity=False)
             if shap_value.ndim == 3 and shap_value.shape[2] > 1:
                 shap_value = shap_value[..., class_idx] if class_idx is not None else shap_value.mean(axis=2, keepdims=True)
 
-            return shap_value
+            return shap_value, background_data
 
         def compute_grad_weights(grad_source="prob"):
             grad_weights_full = []
@@ -514,12 +525,12 @@ class CauTrigger1L(nn.Module):
         if method == "Model":
             weights_full = compute_model_weights()
         elif method == "SHAP":
-            weights_full = compute_shap_weights(class_idx=class_idx)
+            weights_full, bg_used = compute_shap_weights(class_idx=class_idx, background_data=background_data)
         elif method == "Grad":
             weights_full = compute_grad_weights(grad_source=grad_source)
         elif method == "Ensemble":
             model_weights = np.abs(compute_model_weights())
-            shap_weights = np.abs(compute_shap_weights())
+            shap_weights, bg_used = compute_shap_weights(class_idx=class_idx, background_data=background_data)  # ← 传进去
             grad_weights = np.abs(compute_grad_weights())
 
             # Normalize each set of weights
@@ -537,20 +548,278 @@ class CauTrigger1L(nn.Module):
 
         # Get the mean of the weights for each feature
         weights = np.mean(np.abs(weights_full), axis=0)
+        weights_signed = np.mean(weights_full, axis=0)
 
         # Normalize the weights if required
         if normalize:
             weights = weights / np.sum(weights)
+            weights_signed = weights_signed / np.sum(np.abs(weights_signed))
 
         # Create a new DataFrame with the weights
         weights_df = self.adata.var.copy()
         weights_df['weight'] = weights
+        weights_df['weight_signed'] = weights_signed  # add new column
 
         # Sort the DataFrame by weight if required
         if sort_by_weight:
             weights_df = weights_df.sort_values(by='weight', ascending=False)
 
-        return weights_df, weights_full
+        if return_background and method == "SHAP":
+            return weights_df, weights_full, bg_used
+        else:
+            return weights_df, weights_full
+
+    def get_up_significance(
+            self,
+            adata: Optional[AnnData] = None,
+            method: str = "SHAP",  # "SHAP" or "Grad"
+            test_mode: str = "permutation",  # "permutation" or "sign_test"
+            perm_mode: str = "global",  # "global" or "per_feature" (only for permutation)
+            n_perm: int = 100,
+            n_bg_samples: int = 100,
+            grad_source: str = "prob",
+            normalize: bool = False,
+            class_idx: Optional[int] = None,
+            target_genes: Optional[List[str]] = None,
+            fdr_correct: bool = True,
+            use_signed: bool = True,
+            show_progress: bool = True,
+            random_state: Optional[int] = 42,
+    ):
+        r"""
+        Compute significance of upstream feature weights using:
+        - Grad  → Binomial sign-consistency test
+        - SHAP  → Binomial sign-consistency test or permutation test
+
+        Parameters
+        ----------
+        adata : AnnData, optional
+            Input AnnData object (default: self.adata)
+        method : str
+            "SHAP" or "Grad"
+        test_mode : str
+            For SHAP: "sign_test" or "permutation" (ignored for Grad)
+        perm_mode : str
+            "global" or "per_feature" shuffle strategy (for permutation test)
+        n_perm : int
+            Number of permutations (for permutation test)
+        n_bg_samples : int
+            Number of background samples for SHAP
+        grad_source : str
+            Source for gradient-based attribution ("prob", "logit", or "loss")
+        normalize : bool
+            Whether to normalize weights across features
+        class_idx : int, optional
+            Target class index for class-specific analysis
+        target_genes : list of str, optional
+            Genes/features to test; if None, use all
+        fdr_correct : bool
+            Apply Benjamini–Hochberg correction
+        use_signed : bool
+            Whether to use signed weights for p-value calculation
+        show_progress : bool
+            Display progress bar
+        random_state : int, optional
+            Random seed
+
+        Returns
+        -------
+        df_result : pd.DataFrame
+            DataFrame with ['weight', 'weight_signed', 'pvalue', ('qvalue')]
+        perm_matrix : np.ndarray or None
+            Permutation matrix for SHAP (None for Grad or sign_test)
+        """
+        if random_state is not None:
+            np.random.seed(random_state)
+
+        adata = adata if adata is not None else self.adata
+
+        # =======================================================
+        # Grad → Binomial Sign-Consistency Test
+        # =======================================================
+        if method == "Grad":
+            df_obs, weights_full = self.get_up_feature_weights(
+                adata=adata,
+                method=method,
+                n_bg_samples=n_bg_samples,
+                grad_source=grad_source,
+                normalize=normalize,
+                sort_by_weight=False,
+                class_idx=class_idx,
+            )
+
+            n = weights_full.shape[0]
+            k = (weights_full > 0).sum(axis=0)
+
+            pvals = np.array([
+                stats.binomtest(int(kk), n, p=0.5, alternative="two-sided").pvalue
+                for kk in k
+            ])
+
+            mean_grad = np.mean(weights_full, axis=0).astype(float)
+
+            df_result = pd.DataFrame({
+                "weight": np.abs(mean_grad),
+                "weight_signed": mean_grad,
+                "pvalue": pvals,
+            }, index=df_obs.index)
+
+            if fdr_correct:
+                df_result["qvalue"] = multipletests(pvals, method="fdr_bh")[1]
+
+            print(
+                "[Note] Grad-based significance computed via two-sided Binomial test on gradient sign consistency (no permutation).")
+            return df_result, None
+
+        # =======================================================
+        # SHAP → Binomial Sign-Consistency Test
+        # =======================================================
+        elif method == "SHAP" and test_mode == "sign_test":
+            df_obs, shap_matrix = self.get_up_feature_weights(
+                adata=adata,
+                method=method,
+                n_bg_samples=n_bg_samples,
+                grad_source=grad_source,
+                normalize=normalize,
+                sort_by_weight=False,
+                class_idx=class_idx,
+            )
+
+            n = shap_matrix.shape[0]
+            k = (shap_matrix > 0).sum(axis=0)
+
+            pvals = np.array([
+                stats.binomtest(int(kk), n, p=0.5, alternative="two-sided").pvalue
+                for kk in k
+            ])
+
+            # Remove trailing dimension if exists
+            mean_shap = np.mean(shap_matrix, axis=0).astype(float).squeeze()
+
+            df_result = pd.DataFrame({
+                "weight": np.abs(mean_shap),
+                "weight_signed": mean_shap,
+                "pvalue": pvals,
+            }, index=df_obs.index)
+
+            if fdr_correct:
+                df_result["qvalue"] = multipletests(pvals, method="fdr_bh")[1]
+
+            print(
+                "[Note] SHAP-based significance computed via two-sided Binomial test on contribution sign consistency (no permutation).")
+            return df_result, None
+
+        # =======================================================
+        # SHAP → Permutation-Based Test
+        # =======================================================
+        elif method == "SHAP" and test_mode == "permutation":
+            df_obs, _, bg_data = self.get_up_feature_weights(
+                adata=adata,
+                method=method,
+                n_bg_samples=n_bg_samples,
+                grad_source=grad_source,
+                normalize=normalize,
+                sort_by_weight=False,
+                class_idx=class_idx,
+                return_background=True,
+            )
+
+            var_names = df_obs.index.tolist()
+            if target_genes is None:
+                target_genes = var_names
+
+            perm_matrix = np.zeros((len(target_genes), n_perm))
+            iterator = tqdm(range(n_perm), desc="Permuting", disable=not show_progress)
+
+            # ---------- Global permutation ----------
+            if perm_mode == "global":
+                for i in iterator:
+                    adata_perm = adata.copy()
+                    X = adata_perm.X.copy()
+                    for j in range(X.shape[1]):
+                        np.random.shuffle(X[:, j])
+                    adata_perm.X = X
+
+                    df_perm, _ = self.get_up_feature_weights(
+                        adata=adata_perm,
+                        method=method,
+                        n_bg_samples=n_bg_samples,
+                        grad_source=grad_source,
+                        normalize=normalize,
+                        sort_by_weight=False,
+                        class_idx=class_idx,
+                        background_data=bg_data,
+                    )
+                    col = "weight_signed" if (use_signed and "weight_signed" in df_perm.columns) else "weight"
+                    perm_matrix[:, i] = df_perm.loc[target_genes, col].values
+
+            # ---------- Per-feature permutation ----------
+            elif perm_mode == "per_feature":
+                for g_idx, gene in enumerate(tqdm(target_genes, desc="Target genes", disable=not show_progress)):
+                    if gene not in var_names:
+                        continue
+                    j = var_names.index(gene)
+                    for i in range(n_perm):
+                        adata_perm = adata.copy()
+                        X = adata_perm.X.copy()
+                        np.random.shuffle(X[:, j])
+                        adata_perm.X = X
+
+                        df_perm, _ = self.get_up_feature_weights(
+                            adata=adata_perm,
+                            method=method,
+                            n_bg_samples=n_bg_samples,
+                            grad_source=grad_source,
+                            normalize=normalize,
+                            sort_by_weight=False,
+                            class_idx=class_idx,
+                            background_data=bg_data,
+                        )
+                        col = "weight_signed" if (use_signed and "weight_signed" in df_perm.columns) else "weight"
+                        perm_matrix[g_idx, i] = df_perm.loc[gene, col]
+
+            else:
+                raise ValueError("perm_mode must be 'global' or 'per_feature'.")
+
+            # ---------- Compute empirical p-values ----------
+            pvals = np.zeros(len(target_genes))
+            for k, gene in enumerate(target_genes):
+                obs_val = (
+                    df_obs.loc[gene, "weight_signed"]
+                    if (use_signed and "weight_signed" in df_obs.columns)
+                    else abs(df_obs.loc[gene, "weight"])
+                )
+                null_dist = perm_matrix[k, :]
+
+                if use_signed and "weight_signed" in df_obs.columns:
+                    if obs_val >= 0:
+                        pvals[k] = (1 + np.sum(null_dist >= obs_val)) / (n_perm + 1)
+                    else:
+                        pvals[k] = (1 + np.sum(null_dist <= obs_val)) / (n_perm + 1)
+                else:
+                    pvals[k] = (1 + np.sum(np.abs(null_dist) >= abs(obs_val))) / (n_perm + 1)
+
+            df_result = pd.DataFrame({
+                "weight": df_obs.loc[target_genes, "weight"].values,
+                "weight_signed": df_obs.loc[target_genes, "weight_signed"].values,
+                "pvalue": pvals,
+            }, index=target_genes)
+
+            if fdr_correct:
+                df_result["qvalue"] = multipletests(pvals, method="fdr_bh")[1]
+
+            print(
+                f"[Note] SHAP-based significance computed via permutation test ({perm_mode} mode, {n_perm} permutations).")
+            return df_result, perm_matrix
+
+        # =======================================================
+        # Unsupported combinations
+        # =======================================================
+        else:
+            raise ValueError(
+                f"Unsupported configuration: method='{method}', test_mode='{test_mode}'. "
+                "Supported: Grad(binomial), SHAP(sign_test/permutation)."
+            )
 
     @torch.no_grad()
     def get_model_output(
@@ -1223,7 +1492,7 @@ class CauTrigger2L(nn.Module):
             weights_full = compute_grad_weights(grad_source=grad_source)
         elif method == "Ensemble":
             model_weights = np.abs(compute_model_weights())
-            shap_weights, bg_used = compute_shap_weights(class_idx=class_idx, background_data=background_data)  # ← 传进去
+            shap_weights, bg_used = compute_shap_weights(class_idx=class_idx, background_data=background_data)  # feed bg used
             shap_weights = np.abs(shap_weights)
             grad_weights = np.abs(compute_grad_weights())
 
@@ -2299,6 +2568,13 @@ class CauTrigger3L(nn.Module):
             weights_df = weights_df.sort_values(by='weight', ascending=False)
 
         return weights_df, weights_full
+
+    def get_up_significance(self, *args, **kwargs):
+        raise NotImplementedError(
+            "get_up_significance is implemented for CauTrigger1L/2L. "
+            "For 3L, enable it after aligning get_up_feature_weights (adata/background_data/return_background, weight_signed) "
+            "and verifying Grad loss inputs."
+        )
 
     def get_3to2_shap(
             self,
