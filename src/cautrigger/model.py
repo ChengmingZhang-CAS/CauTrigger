@@ -2571,8 +2571,9 @@ class CauTrigger3L(nn.Module):
 
     def get_up_significance(self, *args, **kwargs):
         raise NotImplementedError(
-            "get_up_significance is implemented for CauTrigger1L/2L."
-            "For 3L, enable it after aligning get_up_feature_weights (adata/background_data/return_background, weight_signed)"
+            "get_up_significance is implemented for CauTrigger1L/2L. "
+            "For 3L, enable it after aligning get_up_feature_weights (adata/background_data/return_background, weight_signed) "
+            "and verifying Grad loss inputs."
         )
 
     def get_3to2_shap(

@@ -533,9 +533,10 @@ class DualVAE1L(nn.Module):
         feat_l1_loss_up = torch.sum(torch.abs(feat_w_up))
 
         # **4. DPD loss (classification loss)**
+        valid_mask = (y != -1)  # Mask for valid samples
         if self.n_state == 2:
             # **Binary classification or 0-1 continuous label**
-            if y.min() >= 0 and y.max() <= 1:
+            if torch.any((y[valid_mask] > 0) & (y[valid_mask] < 1)):
                 pos_weight = None
             else:
                 if imb_factor is not None:
@@ -551,19 +552,27 @@ class DualVAE1L(nn.Module):
 
             dpd_loss = F.binary_cross_entropy_with_logits(org_logit.squeeze(), y, pos_weight=pos_weight,
                                                           reduction='none')
+            dpd_loss = dpd_loss * valid_mask.float()
 
         elif self.n_state > 2:
             # **Multi-class classification loss (CrossEntropy)**
             if imb_factor is not None:
-                class_counts = torch.bincount(y.long())  # Count number of samples per class
-                total_samples = y.numel()
-                class_weights = total_samples / (class_counts.float() + 1e-6)  # Avoid division by zero
-                class_weights = class_weights / class_weights.mean()  # Normalize
+                class_counts = torch.bincount(y[valid_mask].long(), minlength=self.n_state)
+                class_counts[class_counts == 0] = 1
+                total_samples = valid_mask.sum()
+                class_weights = total_samples / (class_counts.float() + 1e-6)
+                class_weights = class_weights / class_weights.mean()
                 class_weights = class_weights.to(org_logit.device)
-                loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights, reduction='none')
+                loss_fn = torch.nn.CrossEntropyLoss(
+                    weight=class_weights,
+                    reduction='none',
+                    ignore_index=-1
+                )
             else:
-                loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
-
+                loss_fn = torch.nn.CrossEntropyLoss(
+                    reduction='none',
+                    ignore_index=-1
+                )
             dpd_loss = loss_fn(org_logit, y.long())
 
         else:
@@ -978,9 +987,10 @@ class DualVAE2L(nn.Module):
         # dpd_loss = F.binary_cross_entropy(org_prob.squeeze(), y, reduction='none')
         # dpd_loss = F.binary_cross_entropy_with_logits(org_logit.squeeze(), y, reduction='none')
         # Determine the type of `y`
+        valid_mask = (y != -1)  # Mask for valid samples
         if self.n_state == 2:
             # Binary classification or 0-1 continuous value prediction
-            if y.min() >= 0 and y.max() <= 1:
+            if torch.any((y[valid_mask] > 0) & (y[valid_mask] < 1)):
                 # Soft label processing
                 pos_weight = None
             else:
@@ -999,21 +1009,23 @@ class DualVAE2L(nn.Module):
             # Compute BCE loss
             dpd_loss = F.binary_cross_entropy_with_logits(org_logit.squeeze(), y, pos_weight=pos_weight,
                                                           reduction='none')
+            dpd_loss = dpd_loss * valid_mask.float()
 
         elif self.n_state > 2:
             # Multi-class classification
             if imb_factor is not None:
                 # Compute class weights
-                class_counts = torch.bincount(y.long())  # Count number of samples per class
-                total_samples = y.numel()
-                class_weights = total_samples / (class_counts.float() + 1e-6)  # Avoid division by zero
-                class_weights = class_weights / class_weights.mean()  # Normalize
+                class_counts = torch.bincount(y[valid_mask].long(), minlength=self.n_state)
+                class_counts[class_counts == 0] = 1
+                total_samples = valid_mask.sum()
+                class_weights = total_samples / (class_counts.float() + 1e-6)
+                class_weights = class_weights / class_weights.mean()
 
                 # Convert to tensor
                 class_weights = class_weights.to(org_logit.device)
-                loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights, reduction='none')
+                loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights, reduction='none', ignore_index=-1)
             else:
-                loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
+                loss_fn = torch.nn.CrossEntropyLoss(reduction='none', ignore_index=-1)
 
             # Compute CE loss
             dpd_loss = loss_fn(org_logit, y.long())
@@ -1441,9 +1453,10 @@ class DualVAE3L(nn.Module):
         # dpd_loss = F.binary_cross_entropy(org_prob.squeeze(), y, reduction='none')
         # dpd_loss = F.binary_cross_entropy_with_logits(org_logit.squeeze(), y, reduction='none')
         # Determine the type of `y`
+        valid_mask = (y != -1)  # Mask for valid samples
         if self.n_state == 2:
             # Binary classification or 0-1 continuous value prediction
-            if y.min() >= 0 and y.max() <= 1:
+            if torch.any((y[valid_mask] > 0) & (y[valid_mask] < 1)):
                 # Soft label processing
                 pos_weight = None
             else:
@@ -1460,21 +1473,23 @@ class DualVAE3L(nn.Module):
 
             # Compute BCE loss
             dpd_loss = F.binary_cross_entropy_with_logits(org_logit.squeeze(), y, pos_weight=pos_weight, reduction='none')
+            dpd_loss = dpd_loss * valid_mask.float()
 
         elif self.n_state > 2:
             # Multi-class classification
             if imb_factor is not None:
                 # Compute class weights
-                class_counts = torch.bincount(y.long())  # Count number of samples per class
-                total_samples = y.numel()
+                class_counts = torch.bincount(y[valid_mask].long(), minlength=self.n_state)
+                class_counts[class_counts == 0] = 1
+                total_samples = valid_mask.sum()
                 class_weights = total_samples / (class_counts.float() + 1e-6)  # Avoid division by zero
                 class_weights = class_weights / class_weights.mean()  # Normalize
 
                 # Convert to tensor
                 class_weights = class_weights.to(org_logit.device)
-                loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights, reduction='none')
+                loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights, reduction='none', ignore_index=-1)
             else:
-                loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
+                loss_fn = torch.nn.CrossEntropyLoss(reduction='none', ignore_index=-1)
 
             # Compute CE loss
             dpd_loss = loss_fn(org_logit, y.long())
