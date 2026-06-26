@@ -43,7 +43,14 @@ You need to have Python 3.10 or newer installed on your system. Installation usu
 pip install git+https://github.com/ChengmingZhang-CAS/CauTrigger.git@main
 ```
 
-The `velocyto` package is used to access the `colDeltaCorpartial` function for calculating local partial correlations. Since this function depends on Cython extensions, prerequisites like Cython and NumPy must be pre-installed. For the full installation guide, please refer to the official documentation [velocyto-install][].
+The `velocyto` package is used to access the `colDeltaCorpartial` function for calculating local partial correlations in the perturbation vector-field utilities. Because `velocyto` builds Cython extensions and imports NumPy during its build step, install NumPy and Cython first and then install `velocyto` with build isolation disabled:
+
+```bash
+pip install numpy cython
+pip install velocyto --no-build-isolation
+```
+
+This avoids the clean-environment build error `ModuleNotFoundError: No module named 'numpy'`. For the full installation guide, please refer to the official documentation [velocyto-install][].
 
 ## Analyze your own datasets
 ### Step 1: Prepare your dataset

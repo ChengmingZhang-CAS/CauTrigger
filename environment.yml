@@ -10,6 +10,7 @@ dependencies:
   - pytorch=2.3.0
   - pytorch-cuda=12.1
   - numpy
+  - cython
   - pandas
   - anndata
   - scanpy>=1.9
@@ -26,6 +27,7 @@ dependencies:
 
   - pip:
       - captum
-      - velocyto
 
-
+# Optional for perturbation vector-field utilities:
+#   pip install numpy cython
+#   pip install velocyto --no-build-isolation
