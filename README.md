@@ -4,7 +4,8 @@
 [![Documentation][badge-docs]][documentation]
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/ChengmingZhang-CAS/CauTrigger/test.yaml?branch=main
-[badge-docs]: https://img.shields.io/readthedocs/CauTrigger
+[badge-docs]: https://app.readthedocs.org/projects/cautrigger/badge/?version=latest
+[tests]: https://github.com/ChengmingZhang-CAS/CauTrigger/actions/workflows/test.yaml
 
 <p align="center">
   <strong>Deciphering biological system state transitions by hierarchical causal decomposition</strong>
