@@ -1,7 +1,6 @@
 # <img src="https://raw.githubusercontent.com/ChengmingZhang-CAS/CauTrigger/main/docs/_static/logo.png" width="60"> CauTrigger
 
 [![Tests][badge-tests]][tests]
-[Documentation][documentation]
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/ChengmingZhang-CAS/CauTrigger/test.yaml?branch=main
 [tests]: https://github.com/ChengmingZhang-CAS/CauTrigger/actions/workflows/test.yaml
