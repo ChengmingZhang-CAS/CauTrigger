@@ -98,7 +98,7 @@ For questions, discussions, or bug reports, please use the GitHub issue tracker.
 
 ## Citation
 
-> t.b.a
+> Zhang, C., Cai, D., Aihara, K. & Chen, L. **CauTrigger: deciphering biological system state transitions by hierarchical causal decomposition.** *Nature Methods* (2026). https://doi.org/10.1038/s41592-026-03274-9
 
 [issue tracker]: https://github.com/ChengmingZhang-CAS/CauTrigger/issues
 [documentation]: https://cautrigger.readthedocs.io
