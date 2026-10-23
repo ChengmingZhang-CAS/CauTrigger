@@ -1,10 +1,9 @@
 # <img src="https://raw.githubusercontent.com/ChengmingZhang-CAS/CauTrigger/main/docs/_static/logo.png" width="60"> CauTrigger
 
 [![Tests][badge-tests]][tests]
-[![Documentation][badge-docs]][documentation]
+[Documentation][documentation]
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/ChengmingZhang-CAS/CauTrigger/test.yaml?branch=main
-[badge-docs]: https://app.readthedocs.org/projects/cautrigger/badge/?version=latest
 [tests]: https://github.com/ChengmingZhang-CAS/CauTrigger/actions/workflows/test.yaml
 
 <p align="center">
@@ -15,9 +14,7 @@
   <img src="https://raw.githubusercontent.com/ChengmingZhang-CAS/CauTrigger/main/docs/_static/CauTrigger_overview.png" width="640" />
 </div>
 
-> <small>
 CauTrigger is a causal decoupling model constructed on a dual-flow variational autoencoder (DFVAE) framework to identify causal triggers that influence biological state transitions in a hierarchical manner. Triggers ($x^n$) are processed through a feature selection layer to separate causal triggers ($x^{c_n}$) and others ($\tilde{x}^{c_n}$), and are then encoded into a latent space $z$ that consists of causal ($z^{c_n}$) and spurious ($z^{s_n}$) components. This latent space is decoded to generate downstream conductors ($x^{c_{n-1}}, \dots, x^{c_1}$) and to predict the final cell state ($y$). The model strives to maximize the causal information flow $I(z^{c_n} \rightarrow y)$ from $z^{c_n}$ to $y$, thereby delineating hierarchical causal paths from $x^{c_n}$ to $y$ via $z^{c_n}$.
-> </small>
 
 ---
 
